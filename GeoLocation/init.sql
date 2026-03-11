@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS postgis;
 
-CREATE TABLE geo_resources (
+CREATE TABLE devices (
     id SERIAL PRIMARY KEY,
     device_id UUID NOT NULL,                 -- Identificador único do dispositivo
     location GEOMETRY(Point, 4326) NOT NULL, -- Coordenada (Lon, Lat)
@@ -8,5 +8,14 @@ CREATE TABLE geo_resources (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE marketplace_items (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    price FLOAT NOT NULL,
+    address VARCHAR(255),
+    contact_info VARCHAR(255)
+);
+
 -- 3. Índice Espacial (Fundamental para performance)
-CREATE INDEX idx_geo_resources_location ON geo_resources USING GIST (location);
+CREATE INDEX idx_devices_location ON devices USING GIST (location);
