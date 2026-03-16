@@ -1,7 +1,9 @@
+from typing import Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from psycopg2.extras import execute_values
 
 app = FastAPI()
 
@@ -22,41 +24,95 @@ class LocationUpdate(BaseModel):
     accuracy: float
 
 class MarketplaceItem(BaseModel):
-    id: int
+    id: Optional[int] = None
     name: str
     description: str
     price: float
     address: str
     contact_info: str
+    latitude: float
+    longitude: float
 
 
-@app.post("/api/v1/sync")
-#Endpoint para sincronização da cache local ----> bd
-async def sync_data():
-    pass
+@app.post("/api/v1/sync/locations")
+async def sync_locations(locations: list[LocationUpdate]):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        # O NOME DA COLUNA É 'location'. A função vai no template.
+        query = "INSERT INTO devices (device_id, location, accuracy) VALUES %s"
+        template = "(%s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s)"
+        values = [(loc.device_id, loc.longitude, loc.latitude, loc.accuracy) for loc in locations]
+        
+        execute_values(cur, query, values, template=template)
+        conn.commit()
+        return {"message": "Sincronizado!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
+
+
+    
+@app.post("/api/v1/sync/items")
+async def post_sync_items(items: list[MarketplaceItem]):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        query = "INSERT INTO marketplace_items (name, description, price, address, contact_info, location) VALUES %s"
+        # O template mapeia cada campo e aplica a função geográfica ao longitude e latitude
+        template = "(%s, %s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))"
+        values = [(i.name, i.description, i.price, i.address, i.contact_info, i.longitude, i.latitude) for i in items]
+        
+        execute_values(cur, query, values, template=template)
+        conn.commit()
+        return {"status": "success", "uploaded": len(items)}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
+
+
 
 @app.get("/api/v1/sync")
-#Endpoint para sincronização da cache local <---- bd
-async def get_sync_data():
-    pass
-
-@app.post("/api/v1/marketplace/items")
+async def get_sync_data(last_sync: str = "1970-01-01T00:00:00"):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        # Seleciona apenas o que foi criado/alterado após a última sincronização da App
+        cur.execute("""
+            SELECT * FROM marketplace_items 
+            WHERE created_at > %s
+        """, (last_sync,))
+        
+        changes = cur.fetchall()
+        return {"timestamp": "now()", "changes": changes}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
+@app.post("/api/v1/items")
 async def create_marketplace_item(item: MarketplaceItem):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
 
         insert_query = """
-        INSERT INTO marketplace_items (id, name, price, description, address, contact_info)
-        VALUES (%s, %s, %s, %s, %s, %s)
+        INSERT INTO marketplace_items (name, price, description, address, contact_info, location)
+        VALUES (%s, %s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
         """
         cur.execute(insert_query, (
-            item.id,
             item.name,
             item.price,
             item.description,
             item.address,
-            item.contact_info
+            item.contact_info,
+            item.longitude,
+            item.latitude
         ))
 
         conn.commit()
@@ -66,19 +122,15 @@ async def create_marketplace_item(item: MarketplaceItem):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@app.get("/api/v1/marketplace/items")
-#Endpoint para listar todos os itens do marketplace, filtrar por localização e outros critérios 
-async def list_nearby_marketplace_items():
-    pass
-    
 
-@app.get("/api/v1/marketplace/items")
+
+@app.get("/api/v1/items")
 async def list_marketplace_items():
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
-        cur.execute("SELECT id, name, price, description, address, contact_info FROM marketplace_items")
+        cur.execute("SELECT id, name, price, description, address, contact_info, ST_AsText(location) as location FROM marketplace_items")
         items = cur.fetchall()
 
         cur.close()
@@ -88,13 +140,13 @@ async def list_marketplace_items():
         raise HTTPException(status_code=500, detail=str(e))
     
     
-@app.get("/api/v1/marketplace/items/{id}")
+@app.get("/api/v1/items/{id}")
 async def get_marketplace_item(id: int):
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
-        cur.execute("SELECT id, name, price, description, address, contact_info FROM marketplace_items WHERE id = %s", (id,))
+        cur.execute("SELECT id, name, price, description, address, contact_info, location FROM marketplace_items WHERE id = %s", (id,))
         item = cur.fetchone()
 
         cur.close()
@@ -107,7 +159,7 @@ async def get_marketplace_item(id: int):
     
 
 
-@app.post("/api/v1/geo/location")
+@app.post("/api/v1/location")
 async def update_location(data: LocationUpdate):
     try:
         conn = get_db_connection()
@@ -127,7 +179,7 @@ async def update_location(data: LocationUpdate):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@app.post("/api/v1/geo/map-data")
+@app.post("/api/v1/map-data")
 #Endpoint para descarregar dados geográficos para visualização de mapas
 async def get_map_data():
     pass

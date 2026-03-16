@@ -15,7 +15,10 @@ CREATE TABLE marketplace_items (
     price FLOAT NOT NULL,
     address VARCHAR(255),
     contact_info VARCHAR(255)
+    location GEOMETRY(Point, 4326) NOT NULL, -- Coordenada (Lon, Lat)
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 3. Índice Espacial (Fundamental para performance)
 CREATE INDEX idx_devices_location ON devices USING GIST (location);
+CREATE INDEX idx_marketplace_items_location ON marketplace_items USING GIST (location);
