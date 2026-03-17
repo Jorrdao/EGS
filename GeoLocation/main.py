@@ -95,6 +95,9 @@ async def get_sync_data(last_sync: str = "1970-01-01T00:00:00"):
     finally:
         cur.close()
         conn.close()
+
+
+        
 @app.post("/api/v1/items")
 async def create_marketplace_item(item: MarketplaceItem):
     try:
@@ -120,8 +123,8 @@ async def create_marketplace_item(item: MarketplaceItem):
         conn.close()
         return {"message": "Item criado com sucesso!"}
     except Exception as e:
+        print(f"ERRO DE SQL: {e}") # ISTO VAI APARECER NO TEU TERMINAL
         raise HTTPException(status_code=500, detail=str(e))
-    
 
 
 @app.get("/api/v1/items")
