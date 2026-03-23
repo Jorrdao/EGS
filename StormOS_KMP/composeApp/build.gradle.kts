@@ -27,6 +27,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            implementation(compose.materialIconsExtended)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
@@ -35,6 +36,7 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            implementation("org.jetbrains.androidx.navigation:navigation-compose:2.8.0-alpha10")
             
             // Networking logic for communication with backend (main.py)
             implementation(libs.ktor.client.core)
@@ -43,6 +45,7 @@ kotlin {
         }
         
         androidMain.dependencies {
+            implementation("com.google.android.gms:play-services-maps:19.0.0")
             implementation(libs.androidx.activity.compose)
             implementation(libs.ktor.client.okhttp) // Android Engine
             implementation(libs.google.play.services.location) // ADICIONA ISTO
