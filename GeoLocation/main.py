@@ -182,7 +182,23 @@ async def update_location(data: LocationUpdate):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@app.post("/api/v1/map-data")
-#Endpoint para descarregar dados geográficos para visualização de mapas
-async def get_map_data():
-    pass
+    
+    
+@app.get("/api/v1/map/data")
+async def get_map_data(min_lat: float, max_lat: float, min_lon: float, max_lon: float):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        # Query que filtra itens dentro de um retângulo geográfico
+        query = """
+            SELECT id, name, price, ST_X(location::geometry) as lon, ST_Y(location::geometry) as lat 
+            FROM marketplace_items 
+            WHERE location && ST_MakeEnvelope(%s, %s, %s, %s, 4326)
+        """
+        cur.execute(query, (min_lon, min_lat, max_lon, max_lat))
+        items = cur.fetchall()
+        cur.close()
+        conn.close()
+        return {"map_elements": items}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
