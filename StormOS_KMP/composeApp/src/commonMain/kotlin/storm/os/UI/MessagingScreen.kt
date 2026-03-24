@@ -12,15 +12,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-@Composable
-fun MessagingScreen() {
-    var messageText by remember { mutableStateOf("") }
-    // Lista mutável para simular mensagens em memória
-    val messages = remember { mutableStateListOf("Olá! O item ainda está disponível?", "Sim, está em perfeitas condições.") }
+data class Message(val text: String, val isMe: Boolean)
 
+@Composable
+fun MessagingScreen(userName: String) {
+    var messageText by remember { mutableStateOf("") }
+    val messages = remember {
+        mutableStateListOf(
+            Message("Olá! O item ainda está disponível?", false),
+            Message("Sim, está em perfeitas condições.", true)
+        )
+    }
+    // ... restante estrutura da Column ...
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            text = "Chat: Vendedor Alpha",
+            text = "Chat: $userName",
             modifier = Modifier.padding(16.dp),
             style = MaterialTheme.typography.titleLarge
         )
@@ -34,13 +40,18 @@ fun MessagingScreen() {
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
             items(messages) { msg ->
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
-                    modifier = Modifier.align(Alignment.End).widthIn(max = 280.dp)
-                ) {
-                    Text(msg, modifier = Modifier.padding(12.dp))
+                val alignment = if (msg.isMe) Alignment.End else Alignment.Start
+                val color = if (msg.isMe) MaterialTheme.colorScheme.primaryContainer
+                else MaterialTheme.colorScheme.secondaryContainer
+
+                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = alignment) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = color),
+                        modifier = Modifier.widthIn(max = 280.dp).padding(vertical = 4.dp),
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Text(msg.text, modifier = Modifier.padding(12.dp))
+                    }
                 }
             }
         }
@@ -62,7 +73,7 @@ fun MessagingScreen() {
                 IconButton(
                     onClick = {
                         if (messageText.isNotBlank()) {
-                            messages.add(messageText)
+                            messages.add(Message(messageText, true))
                             messageText = ""
                         }
                     },

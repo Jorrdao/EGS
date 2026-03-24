@@ -128,12 +128,24 @@ async def create_marketplace_item(item: MarketplaceItem):
 
 
 @app.get("/api/v1/items")
-async def list_marketplace_items():
+async def list_marketplace_items(radius : float = 0.0):
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
-        cur.execute("SELECT id, name, price, description, address, contact_info, ST_AsText(location) as location FROM marketplace_items")
+        user_lat, user_lon = 40.6405, -8.6538  
+
+        if radius == 0:
+            query = "SELECT id, name, price, description, address, contact_info, ST_AsText(location) as location FROM marketplace_items"
+            cur.execute(query)
+        else:
+            query = """
+            SELECT id, name, price, description, address, contact_info, ST_AsText(location) as location 
+            FROM marketplace_items 
+            WHERE ST_DWithin(location::geography, ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography, %s)
+            """
+            cur.execute(query, (user_lon, user_lat, radius * 1000))  # radius em metros
+
         items = cur.fetchall()
 
         cur.close()
