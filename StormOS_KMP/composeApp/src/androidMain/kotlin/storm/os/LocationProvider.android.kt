@@ -1,22 +1,24 @@
+// Em composeApp/src/androidMain/kotlin/storm/os/LocationProvider.android.kt
 package storm.os
 
 import android.annotation.SuppressLint
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
-import kotlinx.coroutines.tasks.await
 import android.content.Context
-
-// Precisamos de uma forma de obter o Context.
-// O KMP Wizard geralmente cria uma variável global ou injeta via Activity.
-lateinit var androidContext: Context
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationServices.getFusedLocationProviderClient
+import kotlinx.coroutines.tasks.await
 
 @SuppressLint("MissingPermission")
 actual suspend fun getCurrentLocation(): Pair<Double, Double>? {
-    val client = LocationServices.getFusedLocationProviderClient(androidContext)
     return try {
-        val location = client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
-        location?.let { Pair(it.latitude, it.longitude) }
+        // Usa o contexto que guardámos no AppConfig
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(AppConfig.context)
+
+        val location = fusedLocationClient.lastLocation.await()
+        if (location != null) {
+            Pair(location.latitude, location.longitude)
+        } else null
     } catch (e: Exception) {
+        e.printStackTrace() // Ajuda a ver o erro no Logcat se falhar
         null
     }
 }

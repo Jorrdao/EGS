@@ -50,8 +50,8 @@ fun App() {
             startDestination = "map",
             modifier = Modifier.padding(padding)
         ) {
-            composable("map") { MapScreen(onAdClick = { adName ->
-                navController.navigate("adDetail/$adName")
+            composable("map") { MapScreen(onAdClick = { adId ->
+                navController.navigate("adDetail/$adId")
             }) }
 
             composable("create") { CreateItemScreen() }
@@ -67,13 +67,13 @@ fun App() {
                 MessagingScreen(userName)
             }
             composable("list") {
-                ListScreen(onAdClick = { name ->
-                    navController.navigate("adDetail/$name")
+                ListScreen(onAdClick = { id ->
+                    navController.navigate("adDetail/$id")
                 })
             }
-            composable("adDetail/{adName}") { backStackEntry ->
-                val adName = backStackEntry.arguments?.getString("adName") ?: "Anúncio"
-                AdDetailScreen(adName = adName) { vendor ->
+            composable("adDetail/{adId}") { backStackEntry ->
+                val adId = backStackEntry.arguments?.getString("adId") ?: ""
+                AdDetailScreen(adId = adId) { vendor ->
                     navController.navigate("chat/$vendor")
                 }
             }

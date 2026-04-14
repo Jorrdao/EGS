@@ -38,7 +38,7 @@ fun MapScreen(onAdClick: (String) -> Unit) {
         MapView(
             modifier = Modifier.fillMaxSize(),
             items = mapItems,
-            onMarkerClick = { adName -> onAdClick(adName) }
+            onMarkerClick = { id -> onAdClick(id) }
         )
 
         // Overlay: Barra de estado superior
