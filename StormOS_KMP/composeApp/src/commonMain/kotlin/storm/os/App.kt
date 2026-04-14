@@ -50,7 +50,9 @@ fun App() {
             startDestination = "map",
             modifier = Modifier.padding(padding)
         ) {
-            composable("map") { MapScreen() }
+            composable("map") { MapScreen(onAdClick = { adName ->
+                navController.navigate("adDetail/$adName")
+            }) }
 
             composable("create") { CreateItemScreen() }
 

@@ -51,4 +51,37 @@ object StormApi {
             emptyList()
         }
     }
+
+    // No StormApi.kt
+    suspend fun getSyncData(lastSync: String): List<AdItem> {
+        return try {
+            client.get("http://10.0.2.2:8000/api/v1/sync") {
+                parameter("last_sync", lastSync)
+            }.body()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    // No StormApi.kt
+    suspend fun getMapData(minLat: Double, maxLat: Double, minLon: Double, maxLon: Double): List<AdItem> {
+        return try {
+            client.get("http://10.0.2.2:8000/api/v1/map/data") {
+                parameter("min_lat", minLat)
+                parameter("max_lat", maxLat)
+                parameter("min_lon", minLon)
+                parameter("max_lon", maxLon)
+            }.body()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    // No StormApi.kt
+    /*suspend fun syncLocations(locations: List<LocationUpdate>) {
+        client.post("http://10.0.2.2:8000/api/v1/sync/locations") {
+            contentType(ContentType.Application.Json)
+            setBody(locations)
+        }
+    }*/
 }
