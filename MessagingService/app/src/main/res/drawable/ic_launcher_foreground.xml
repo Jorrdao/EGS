@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Speech bubble body -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,35 Q30,28 37,28 L71,28 Q78,28 78,35 L78,55 Q78,62 71,62 L44,62 L34,72 L34,62 L37,62 Q30,62 30,55 Z" />
+    <!-- Dot 1 -->
+    <path android:fillColor="#2196F3" android:pathData="M42,45 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+    <!-- Dot 2 -->
+    <path android:fillColor="#2196F3" android:pathData="M54,45 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+    <!-- Dot 3 -->
+    <path android:fillColor="#2196F3" android:pathData="M66,45 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+</vector>

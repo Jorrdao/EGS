@@ -1,0 +1,69 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <!--  ══════════════════════════════════════════════════════════════════════
+             ONLINE permissions
+        ═══════════════════════════════════════════════════════════════════════  -->
+<uses-permission android:name="android.permission.INTERNET"/>
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <!--  ══════════════════════════════════════════════════════════════════════
+             BLE permissions
+             Android 12+ uses BLUETOOTH_SCAN / BLUETOOTH_ADVERTISE / BLUETOOTH_CONNECT
+             Android <12 uses ACCESS_FINE_LOCATION + legacy bluetooth permissions
+        ═══════════════════════════════════════════════════════════════════════  -->
+<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>
+<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30"/>
+    <!--  Android 12+ (API 31+)  -->
+<uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" tools:targetApi="s"/>
+<uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" tools:targetApi="s"/>
+<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" tools:targetApi="s"/>
+    <!--  Location – needed for BLE scan on API < 31  -->
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!--  ══════════════════════════════════════════════════════════════════════
+             Foreground service (background BLE + HTTP)
+        ═══════════════════════════════════════════════════════════════════════  -->
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"/>
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+<uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!--  BLE hardware requirement  -->
+<uses-feature android:name="android.hardware.bluetooth_le" android:required="true"/>
+    <!--  ══════════════════════════════════════════════════════════════════════
+             Custom permission – must be declared at <manifest> level, before
+             <application>. Callers must declare this in their own manifest.
+        ═══════════════════════════════════════════════════════════════════════  -->
+<permission android:name="com.messaging.service.BIND_MESSAGING" android:protectionLevel="normal"/>
+<application android:name=".MessagingApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:supportsRtl="true" android:usesCleartextTraffic="true" android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" tools:targetApi="31">
+<!--  ══════════════════════════════════════════════════════════════════
+             Main Foreground Service
+             exported=true  → other apps can start/bind
+             android:process=":messaging" → isolated process for stability
+        ════════════════════════════════════════════════════════════════════  -->
+<service android:name=".service.MessagingForegroundService" android:exported="true" android:foregroundServiceType="connectedDevice" android:process=":messaging" android:permission="com.messaging.service.BIND_MESSAGING">
+    <intent-filter>
+        <action android:name="com.messaging.service.ACTION_BIND"/>
+    </intent-filter>
+</service>
+<!--  ══════════════════════════════════════════════════════════════════
+             Launcher Activity – required so Android Studio / the device can
+             launch the app. Also serves as a manual test UI for the service.
+        ════════════════════════════════════════════════════════════════════  -->
+<activity android:name=".MainActivity" android:exported="true" android:label="@string/app_name">
+    <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+    </intent-filter>
+</activity>
+<!--  Boot receiver – auto-restart service after reboot  -->
+<receiver android:name=".service.BootReceiver" android:exported="false">
+    <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+    </intent-filter>
+</receiver>
+<!--  WorkManager initializer (Hilt)  -->
+<provider android:name="androidx.startup.InitializationProvider" android:authorities="${applicationId}.androidx-startup" android:exported="false" tools:node="merge">
+    <meta-data android:name="androidx.work.WorkManagerInitializer" android:value="androidx.startup" tools:node="remove"/>
+</provider>
+</application>
+    </manifest>

@@ -1,0 +1,217 @@
+openapi: 3.0.3
+info:
+  title: Messaging Service – Online API
+  description: |
+    REST API for the cloud-backed messaging component of the P2P/Mesh application.
+    Offline BLE operations are described separately (see BLE GATT documentation).
+  version: 1.0.0
+  contact:
+    name: Afonso Team
+    email: team@yourbackend.com
+
+servers:
+  - url: https://api.yourbackend.com/api/v1
+    description: Production
+  - url: http://10.0.2.2:8080/api/v1
+    description: Local emulator (Android host loopback)
+
+tags:
+  - name: messages
+    description: Cloud messaging operations
+
+paths:
+  /messages/send:
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message directly via cloud
+      description: |
+        Sends a message to a recipient through the cloud relay.
+        The message is delivered in real-time if the recipient is online,
+        or queued for later delivery.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+            example:
+              chat_id: "chat_abc123"
+              recipient_id: "user_xyz789"
+              content: "Hello from the mesh!"
+              content_type: "text"
+      responses:
+        '200':
+          description: Message accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendMessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      security:
+        - BearerAuth: []
+
+  /messages/{chat_id}:
+    get:
+      operationId: getChatHistory
+      tags: [messages]
+      summary: Get message history for a chat
+      parameters:
+        - name: chat_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique chat room identifier
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+          description: Maximum number of messages to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Pagination offset
+        - name: since
+          in: query
+          schema:
+            type: integer
+            format: int64
+          description: Only return messages after this Unix timestamp (ms)
+      responses:
+        '200':
+          description: Chat history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatHistoryResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      security:
+        - BearerAuth: []
+
+components:
+  schemas:
+    SendMessageRequest:
+      type: object
+      required: [chat_id, recipient_id, content]
+      properties:
+        chat_id:
+          type: string
+          description: Identifier for the chat session
+        recipient_id:
+          type: string
+          description: Target user ID
+        content:
+          type: string
+          description: Message body (plain text or encrypted)
+        content_type:
+          type: string
+          enum: [text, image_url, location]
+          default: text
+        client_message_id:
+          type: string
+          description: Client-generated idempotency key
+
+    SendMessageResponse:
+      type: object
+      properties:
+        message_id:
+          type: string
+        chat_id:
+          type: string
+        status:
+          type: string
+          enum: [delivered, queued, failed]
+        timestamp:
+          type: integer
+          format: int64
+
+    ChatHistoryResponse:
+      type: object
+      properties:
+        chat_id:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        total:
+          type: integer
+        has_more:
+          type: boolean
+
+    Message:
+      type: object
+      properties:
+        message_id:
+          type: string
+        sender_id:
+          type: string
+        recipient_id:
+          type: string
+        content:
+          type: string
+        content_type:
+          type: string
+        timestamp:
+          type: integer
+          format: int64
+        delivered:
+          type: boolean
+        read:
+          type: boolean
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: integer
+          format: int64
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Missing or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ServiceUnavailable:
+      description: Cloud backend unreachable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

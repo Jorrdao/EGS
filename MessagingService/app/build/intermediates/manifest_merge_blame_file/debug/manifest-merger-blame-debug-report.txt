@@ -1,0 +1,457 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.messaging.service"
+4    android:versionCode="1"
+5    android:versionName="1.0.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="26"
+9        android:targetSdkVersion="34" />
+10    <!--
+11          ══════════════════════════════════════════════════════════════════════
+12             ONLINE permissions
+13        ═══════════════════════════════════════════════════════════════════════
+14    -->
+15    <uses-permission android:name="android.permission.INTERNET" />
+15-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:5:1-62
+15-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:5:18-60
+16    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+16-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:6:1-74
+16-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:6:18-72
+17    <!--
+18          ══════════════════════════════════════════════════════════════════════
+19             BLE permissions
+20             Android 12+ uses BLUETOOTH_SCAN / BLUETOOTH_ADVERTISE / BLUETOOTH_CONNECT
+21             Android <12 uses ACCESS_FINE_LOCATION + legacy bluetooth permissions
+22        ═══════════════════════════════════════════════════════════════════════
+23    -->
+24    <uses-permission
+24-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:12:1-90
+25        android:name="android.permission.BLUETOOTH"
+25-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:12:18-61
+26        android:maxSdkVersion="30" />
+26-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:12:62-88
+27    <uses-permission
+27-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:13:1-96
+28        android:name="android.permission.BLUETOOTH_ADMIN"
+28-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:13:18-67
+29        android:maxSdkVersion="30" />
+29-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:13:68-94
+30    <!-- Android 12+ (API 31+) -->
+31    <uses-permission
+31-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:15:1-135
+32        android:name="android.permission.BLUETOOTH_SCAN"
+32-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:15:18-66
+33        android:usesPermissionFlags="neverForLocation" />
+33-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:15:67-113
+34    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+34-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:16:1-93
+34-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:16:18-71
+35    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+35-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:17:1-91
+35-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:17:18-69
+36    <!-- Location – needed for BLE scan on API < 31 -->
+37    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+37-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:19:1-74
+37-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:19:18-72
+38    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+38-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:20:1-76
+38-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:20:18-74
+39    <!--
+40          ══════════════════════════════════════════════════════════════════════
+41             Foreground service (background BLE + HTTP)
+42        ═══════════════════════════════════════════════════════════════════════
+43    -->
+44    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+44-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:24:1-72
+44-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:24:18-70
+45    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+45-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:25:1-89
+45-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:25:18-87
+46    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+46-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:26:1-72
+46-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:26:18-70
+47    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+47-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:27:1-76
+47-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:27:18-74
+48    <uses-permission android:name="android.permission.WAKE_LOCK" />
+48-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:28:1-63
+48-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:28:18-61
+49    <!-- BLE hardware requirement -->
+50    <uses-feature
+50-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:30:1-85
+51        android:name="android.hardware.bluetooth_le"
+51-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:30:15-59
+52        android:required="true" />
+52-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:30:60-83
+53    <!--
+54          ══════════════════════════════════════════════════════════════════════
+55             Custom permission – must be declared at <manifest> level, before
+56             <application>. Callers must declare this in their own manifest.
+57        ═══════════════════════════════════════════════════════════════════════
+58    -->
+59    <permission
+59-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:35:1-99
+60        android:name="com.messaging.service.BIND_MESSAGING"
+60-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:35:13-64
+61        android:protectionLevel="normal" />
+61-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:35:65-97
+62    <permission
+62-->[androidx.core:core:1.12.0] /home/afonsocr/.gradle/caches/transforms-3/3e2cd1fca0f67a1a07a5b96ea2b917ea/transformed/core-1.12.0/AndroidManifest.xml:22:5-24:47
+63        android:name="com.messaging.service.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+63-->[androidx.core:core:1.12.0] /home/afonsocr/.gradle/caches/transforms-3/3e2cd1fca0f67a1a07a5b96ea2b917ea/transformed/core-1.12.0/AndroidManifest.xml:23:9-81
+64        android:protectionLevel="signature" />
+64-->[androidx.core:core:1.12.0] /home/afonsocr/.gradle/caches/transforms-3/3e2cd1fca0f67a1a07a5b96ea2b917ea/transformed/core-1.12.0/AndroidManifest.xml:24:9-44
+65
+66    <uses-permission android:name="com.messaging.service.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+66-->[androidx.core:core:1.12.0] /home/afonsocr/.gradle/caches/transforms-3/3e2cd1fca0f67a1a07a5b96ea2b917ea/transformed/core-1.12.0/AndroidManifest.xml:26:5-97
+66-->[androidx.core:core:1.12.0] /home/afonsocr/.gradle/caches/transforms-3/3e2cd1fca0f67a1a07a5b96ea2b917ea/transformed/core-1.12.0/AndroidManifest.xml:26:22-94
+67
+68    <application
+68-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:36:1-68:15
+69        android:name="com.messaging.service.MessagingApplication"
+69-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:36:14-50
+70        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+70-->[androidx.core:core:1.12.0] /home/afonsocr/.gradle/caches/transforms-3/3e2cd1fca0f67a1a07a5b96ea2b917ea/transformed/core-1.12.0/AndroidManifest.xml:28:18-86
+71        android:debuggable="true"
+72        android:extractNativeLibs="false"
+73        android:icon="@mipmap/ic_launcher"
+73-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:36:84-118
+74        android:label="@string/app_name"
+74-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:36:51-83
+75        android:roundIcon="@mipmap/ic_launcher_round"
+75-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:36:119-164
+76        android:supportsRtl="true"
+76-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:36:165-191
+77        android:testOnly="true"
+78        android:theme="@style/Theme.AppCompat.DayNight.NoActionBar"
+78-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:36:228-287
+79        android:usesCleartextTraffic="true" >
+79-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:36:192-227
+80
+81        <!--
+82      ══════════════════════════════════════════════════════════════════
+83             Main Foreground Service
+84             exported=true  → other apps can start/bind
+85             android:process=":messaging" → isolated process for stability
+86        ════════════════════════════════════════════════════════════════════
+87        -->
+88        <service
+88-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:42:1-46:11
+89            android:name="com.messaging.service.service.MessagingForegroundService"
+89-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:42:10-60
+90            android:exported="true"
+90-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:42:61-84
+91            android:foregroundServiceType="connectedDevice"
+91-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:42:85-132
+92            android:permission="com.messaging.service.BIND_MESSAGING"
+92-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:42:162-219
+93            android:process=":messaging" >
+93-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:42:133-161
+94            <intent-filter>
+94-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:43:5-45:21
+95                <action android:name="com.messaging.service.ACTION_BIND" />
+95-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:44:9-67
+95-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:44:17-65
+96            </intent-filter>
+97        </service>
+98        <!--
+99      ══════════════════════════════════════════════════════════════════
+100             Launcher Activity – required so Android Studio / the device can
+101             launch the app. Also serves as a manual test UI for the service.
+102        ════════════════════════════════════════════════════════════════════
+103        -->
+104        <activity
+104-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:51:1-56:12
+105            android:name="com.messaging.service.MainActivity"
+105-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:51:11-39
+106            android:exported="true"
+106-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:51:40-63
+107            android:label="@string/app_name" >
+107-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:51:64-96
+108            <intent-filter>
+108-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:52:5-55:21
+109                <action android:name="android.intent.action.MAIN" />
+109-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:53:9-60
+109-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:53:17-58
+110
+111                <category android:name="android.intent.category.LAUNCHER" />
+111-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:54:9-68
+111-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:54:19-66
+112            </intent-filter>
+113        </activity>
+114        <!-- Boot receiver – auto-restart service after reboot -->
+115        <receiver
+115-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:58:1-63:12
+116            android:name="com.messaging.service.service.BootReceiver"
+116-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:58:11-47
+117            android:exported="false" >
+117-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:58:48-72
+118            <intent-filter>
+118-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:59:5-62:21
+119                <action android:name="android.intent.action.BOOT_COMPLETED" />
+119-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:60:9-70
+119-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:60:17-68
+120
+121                <category android:name="android.intent.category.DEFAULT" />
+121-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:61:9-67
+121-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:61:19-65
+122            </intent-filter>
+123        </receiver>
+124        <!-- WorkManager initializer (Hilt) -->
+125        <provider
+126            android:name="androidx.startup.InitializationProvider"
+126-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:65:11-65
+127            android:authorities="com.messaging.service.androidx-startup"
+127-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:65:66-121
+128            android:exported="false" >
+128-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:65:122-146
+129            <meta-data
+129-->[androidx.emoji2:emoji2:1.2.0] /home/afonsocr/.gradle/caches/transforms-3/b662ef2c072c179804349b45e5ceacc6/transformed/emoji2-1.2.0/AndroidManifest.xml:29:13-31:52
+130                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+130-->[androidx.emoji2:emoji2:1.2.0] /home/afonsocr/.gradle/caches/transforms-3/b662ef2c072c179804349b45e5ceacc6/transformed/emoji2-1.2.0/AndroidManifest.xml:30:17-75
+131                android:value="androidx.startup" />
+131-->[androidx.emoji2:emoji2:1.2.0] /home/afonsocr/.gradle/caches/transforms-3/b662ef2c072c179804349b45e5ceacc6/transformed/emoji2-1.2.0/AndroidManifest.xml:31:17-49
+132            <meta-data
+132-->[androidx.lifecycle:lifecycle-process:2.7.0] /home/afonsocr/.gradle/caches/transforms-3/f9b4877a17702cde31b19ec0a91e207b/transformed/lifecycle-process-2.7.0/AndroidManifest.xml:29:13-31:52
+133                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+133-->[androidx.lifecycle:lifecycle-process:2.7.0] /home/afonsocr/.gradle/caches/transforms-3/f9b4877a17702cde31b19ec0a91e207b/transformed/lifecycle-process-2.7.0/AndroidManifest.xml:30:17-78
+134                android:value="androidx.startup" />
+134-->[androidx.lifecycle:lifecycle-process:2.7.0] /home/afonsocr/.gradle/caches/transforms-3/f9b4877a17702cde31b19ec0a91e207b/transformed/lifecycle-process-2.7.0/AndroidManifest.xml:31:17-49
+135            <meta-data
+135-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:29:13-31:52
+136                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+136-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:30:17-85
+137                android:value="androidx.startup" />
+137-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:31:17-49
+138        </provider>
+139
+140        <service
+140-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:39:9-45:35
+141            android:name="androidx.work.impl.background.systemalarm.SystemAlarmService"
+141-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:40:13-88
+142            android:directBootAware="false"
+142-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:41:13-44
+143            android:enabled="@bool/enable_system_alarm_service_default"
+143-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:42:13-72
+144            android:exported="false" />
+144-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:43:13-37
+145        <service
+145-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:46:9-52:35
+146            android:name="androidx.work.impl.background.systemjob.SystemJobService"
+146-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:47:13-84
+147            android:directBootAware="false"
+147-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:48:13-44
+148            android:enabled="@bool/enable_system_job_service_default"
+148-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:49:13-70
+149            android:exported="true"
+149-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:50:13-36
+150            android:permission="android.permission.BIND_JOB_SERVICE" />
+150-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:51:13-69
+151        <service
+151-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:53:9-59:35
+152            android:name="androidx.work.impl.foreground.SystemForegroundService"
+152-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:54:13-81
+153            android:directBootAware="false"
+153-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:55:13-44
+154            android:enabled="@bool/enable_system_foreground_service_default"
+154-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:56:13-77
+155            android:exported="false" />
+155-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:57:13-37
+156
+157        <receiver
+157-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:61:9-66:35
+158            android:name="androidx.work.impl.utils.ForceStopRunnable$BroadcastReceiver"
+158-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:62:13-88
+159            android:directBootAware="false"
+159-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:63:13-44
+160            android:enabled="true"
+160-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:64:13-35
+161            android:exported="false" />
+161-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:65:13-37
+162        <receiver
+162-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:67:9-77:20
+163            android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$BatteryChargingProxy"
+163-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:68:13-106
+164            android:directBootAware="false"
+164-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:69:13-44
+165            android:enabled="false"
+165-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:70:13-36
+166            android:exported="false" >
+166-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:71:13-37
+167            <intent-filter>
+167-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:73:13-76:29
+168                <action android:name="android.intent.action.ACTION_POWER_CONNECTED" />
+168-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:74:17-87
+168-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:74:25-84
+169                <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED" />
+169-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:75:17-90
+169-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:75:25-87
+170            </intent-filter>
+171        </receiver>
+172        <receiver
+172-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:78:9-88:20
+173            android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$BatteryNotLowProxy"
+173-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:79:13-104
+174            android:directBootAware="false"
+174-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:80:13-44
+175            android:enabled="false"
+175-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:81:13-36
+176            android:exported="false" >
+176-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:82:13-37
+177            <intent-filter>
+177-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:84:13-87:29
+178                <action android:name="android.intent.action.BATTERY_OKAY" />
+178-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:85:17-77
+178-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:85:25-74
+179                <action android:name="android.intent.action.BATTERY_LOW" />
+179-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:86:17-76
+179-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:86:25-73
+180            </intent-filter>
+181        </receiver>
+182        <receiver
+182-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:89:9-99:20
+183            android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$StorageNotLowProxy"
+183-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:90:13-104
+184            android:directBootAware="false"
+184-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:91:13-44
+185            android:enabled="false"
+185-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:92:13-36
+186            android:exported="false" >
+186-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:93:13-37
+187            <intent-filter>
+187-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:95:13-98:29
+188                <action android:name="android.intent.action.DEVICE_STORAGE_LOW" />
+188-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:96:17-83
+188-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:96:25-80
+189                <action android:name="android.intent.action.DEVICE_STORAGE_OK" />
+189-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:97:17-82
+189-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:97:25-79
+190            </intent-filter>
+191        </receiver>
+192        <receiver
+192-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:100:9-109:20
+193            android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$NetworkStateProxy"
+193-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:101:13-103
+194            android:directBootAware="false"
+194-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:102:13-44
+195            android:enabled="false"
+195-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:103:13-36
+196            android:exported="false" >
+196-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:104:13-37
+197            <intent-filter>
+197-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:106:13-108:29
+198                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+198-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:107:17-79
+198-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:107:25-76
+199            </intent-filter>
+200        </receiver>
+201        <receiver
+201-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:110:9-121:20
+202            android:name="androidx.work.impl.background.systemalarm.RescheduleReceiver"
+202-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:111:13-88
+203            android:directBootAware="false"
+203-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:112:13-44
+204            android:enabled="false"
+204-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:113:13-36
+205            android:exported="false" >
+205-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:114:13-37
+206            <intent-filter>
+206-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:116:13-120:29
+207                <action android:name="android.intent.action.BOOT_COMPLETED" />
+207-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:60:9-70
+207-->/home/afonsocr/UNI/EGS/project/MessagingService/app/src/main/AndroidManifest.xml:60:17-68
+208                <action android:name="android.intent.action.TIME_SET" />
+208-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:118:17-73
+208-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:118:25-70
+209                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+209-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:119:17-81
+209-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:119:25-78
+210            </intent-filter>
+211        </receiver>
+212        <receiver
+212-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:122:9-131:20
+213            android:name="androidx.work.impl.background.systemalarm.ConstraintProxyUpdateReceiver"
+213-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:123:13-99
+214            android:directBootAware="false"
+214-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:124:13-44
+215            android:enabled="@bool/enable_system_alarm_service_default"
+215-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:125:13-72
+216            android:exported="false" >
+216-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:126:13-37
+217            <intent-filter>
+217-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:128:13-130:29
+218                <action android:name="androidx.work.impl.background.systemalarm.UpdateProxies" />
+218-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:129:17-98
+218-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:129:25-95
+219            </intent-filter>
+220        </receiver>
+221        <receiver
+221-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:132:9-142:20
+222            android:name="androidx.work.impl.diagnostics.DiagnosticsReceiver"
+222-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:133:13-78
+223            android:directBootAware="false"
+223-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:134:13-44
+224            android:enabled="true"
+224-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:135:13-35
+225            android:exported="true"
+225-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:136:13-36
+226            android:permission="android.permission.DUMP" >
+226-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:137:13-57
+227            <intent-filter>
+227-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:139:13-141:29
+228                <action android:name="androidx.work.diagnostics.REQUEST_DIAGNOSTICS" />
+228-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:140:17-88
+228-->[androidx.work:work-runtime:2.9.0] /home/afonsocr/.gradle/caches/transforms-3/b739947221b154e68b0c2b5e760cef57/transformed/work-runtime-2.9.0/AndroidManifest.xml:140:25-85
+229            </intent-filter>
+230        </receiver>
+231
+232        <service
+232-->[androidx.room:room-runtime:2.6.1] /home/afonsocr/.gradle/caches/transforms-3/ab5519459ac4b38c88fd9c6adea3370d/transformed/room-runtime-2.6.1/AndroidManifest.xml:24:9-28:63
+233            android:name="androidx.room.MultiInstanceInvalidationService"
+233-->[androidx.room:room-runtime:2.6.1] /home/afonsocr/.gradle/caches/transforms-3/ab5519459ac4b38c88fd9c6adea3370d/transformed/room-runtime-2.6.1/AndroidManifest.xml:25:13-74
+234            android:directBootAware="true"
+234-->[androidx.room:room-runtime:2.6.1] /home/afonsocr/.gradle/caches/transforms-3/ab5519459ac4b38c88fd9c6adea3370d/transformed/room-runtime-2.6.1/AndroidManifest.xml:26:13-43
+235            android:exported="false" />
+235-->[androidx.room:room-runtime:2.6.1] /home/afonsocr/.gradle/caches/transforms-3/ab5519459ac4b38c88fd9c6adea3370d/transformed/room-runtime-2.6.1/AndroidManifest.xml:27:13-37
+236
+237        <receiver
+237-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:34:9-52:20
+238            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+238-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:35:13-76
+239            android:directBootAware="false"
+239-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:36:13-44
+240            android:enabled="true"
+240-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:37:13-35
+241            android:exported="true"
+241-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:38:13-36
+242            android:permission="android.permission.DUMP" >
+242-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:39:13-57
+243            <intent-filter>
+243-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:40:13-42:29
+244                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+244-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:17-91
+244-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:25-88
+245            </intent-filter>
+246            <intent-filter>
+246-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:43:13-45:29
+247                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+247-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:17-85
+247-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:25-82
+248            </intent-filter>
+249            <intent-filter>
+249-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:46:13-48:29
+250                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+250-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:17-88
+250-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:25-85
+251            </intent-filter>
+252            <intent-filter>
+252-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:49:13-51:29
+253                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+253-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:17-95
+253-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/afonsocr/.gradle/caches/transforms-3/f52b83c5899774f4ff6625e46ae38048/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:25-92
+254            </intent-filter>
+255        </receiver>
+256    </application>
+257
+258</manifest>
