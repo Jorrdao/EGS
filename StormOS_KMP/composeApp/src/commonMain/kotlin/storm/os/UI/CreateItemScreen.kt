@@ -86,17 +86,29 @@ fun CreateItemScreen() {
                 onClick = {
                     scope.launch {
                         try {
-                            statusText = "A enviar para o servidor..."
-                            val item = MarketplaceItem(
-                                name = name,
-                                description = description,
-                                price = price.toDoubleOrNull() ?: 0.0,
-                                address = address,
-                                contact_info = "910000000", // Placeholder
-                                latitude = 0.0, longitude = 0.0
-                            )
-                            StormApi.createItem(item)
-                            statusText = "Sucesso: Item criado!"
+                            statusText = "A obter localização do GPS..."
+                            val coords = getCurrentLocation()
+
+                            if (coords != null) {
+                                val (lat, lon) = coords // Captura os valores reais aqui
+                                latitude = lat
+                                longitude = lon
+
+                                statusText = "A enviar para o servidor..."
+                                val item = MarketplaceItem(
+                                    name = name,
+                                    description = description,
+                                    price = price.toDoubleOrNull() ?: 0.0,
+                                    address = address,
+                                    contact_info = contact,
+                                    latitude = lat, // Usa a variável local 'lat' em vez do estado
+                                    longitude = lon // Usa a variável local 'lon' em vez do estado
+                                )
+                                StormApi.createItem(item)
+                                statusText = "Sucesso: Item criado!"
+                            } else {
+                                statusText = "Erro: GPS devolveu nulo. Verifique o emulador."
+                            }
                         } catch (e: Exception) {
                             statusText = "Erro de Rede: Verifique o servidor Python"
                         }
