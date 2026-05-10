@@ -1,0 +1,93 @@
+{
+  "title": "StormOS — User Behaviour",
+  "uid": "stormos-user-behaviour",
+  "timezone": "browser",
+  "refresh": "1m",
+  "time": { "from": "now-7d", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Messages Sent (Online vs BLE)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"messages\" and r.direction == \"sent\")\n  |> aggregateWindow(every: v.windowPeriod, fn: count)\n  |> group(columns: [\"transport\"])"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Messages Per Day",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"messages\")\n  |> aggregateWindow(every: 1d, fn: count)\n  |> group(columns: [\"transport\"])"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Online vs BLE Usage (sent messages)",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"messages\" and r.direction == \"sent\")\n  |> group(columns: [\"transport\"])\n  |> count()\n  |> group()"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Messages Received",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 8 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"messages\" and r.direction == \"received\")\n  |> aggregateWindow(every: v.windowPeriod, fn: count)\n  |> group(columns: [\"transport\"])"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Messages by City",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"messages\")\n  |> group(columns: [\"city\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 10)"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Messages by Country",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"messages\")\n  |> group(columns: [\"country\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Weekly Message Trend",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"messages\")\n  |> aggregateWindow(every: 1w, fn: count)\n  |> group(columns: [\"transport\"])"
+        }
+      ]
+    }
+  ]
+}

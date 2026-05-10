@@ -53,6 +53,8 @@ kotlin {
             implementation(libs.google.play.services.location) // ADICIONA ISTO
             implementation(libs.ktor.client.okhttp)
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.0")
+
+            implementation(project(":messaging"))
         }
         
         val iosMain by creating {

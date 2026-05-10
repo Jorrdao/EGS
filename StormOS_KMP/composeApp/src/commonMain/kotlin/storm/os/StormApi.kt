@@ -7,6 +7,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 @Serializable
 data class AdItem(
@@ -84,4 +85,82 @@ object StormApi {
             setBody(locations)
         }
     }*/
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Messaging API  (port 8080 — Messaging Service embedded HTTP server)
+//
+// Calls go to 127.0.0.1:8080 — the Messaging Service running locally on
+// the same Android device. On iOS this will fail gracefully (no service).
+// ─────────────────────────────────────────────────────────────────────────────
+
+object MessagingApi {
+
+    private const val BASE_URL = "http://127.0.0.1:8080"
+
+    private val client = HttpClient {
+        install(ContentNegotiation) {
+            json(Json { ignoreUnknownKeys = true })
+        }
+    }
+
+    /**
+     * Sends a message to the Messaging Service.
+     * Stored locally as PENDING — works offline.
+     * Returns true on success, false if the service is unreachable.
+     */
+    suspend fun sendMessage(
+        userId: String,
+        chatId: String,
+        recipientId: String,
+        content: String
+    ): Boolean {
+        return try {
+            client.post("$BASE_URL/api/v1/messages/send") {
+                contentType(ContentType.Application.Json)
+                setBody(SendMessageRequest(
+                    userId      = userId,
+                    chatId      = chatId,
+                    recipientId = recipientId,
+                    content     = content
+                ))
+            }
+            true
+        } catch (e: Exception) {
+            println("MessagingApi.sendMessage error: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Returns the list of conversations the user has participated in,
+     * each with the last message and the other participant's ID.
+     * Used to build the dynamic conversation list screen.
+     */
+    suspend fun getChats(userId: String): List<ChatSummary> {
+        return try {
+            client.get("$BASE_URL/api/v1/chats") {
+                parameter("user_id", userId)
+            }.body<ChatsResponse>().chats
+        } catch (e: Exception) {
+            println("MessagingApi.getChats error: ${e.message}")
+            emptyList()
+        }
+    }
+
+    /**
+     * Returns the message history for a chat from the local DB.
+     * Works fully offline — the Messaging Service serves from Room.
+     */
+    suspend fun getHistory(chatId: String): List<ChatMessage> {
+        return try {
+            client.get("$BASE_URL/api/v1/messages/$chatId")
+                .body<ChatHistoryResponse>()
+                .messages
+                .sortedBy { it.timestamp }  // oldest first for chat display
+        } catch (e: Exception) {
+            println("MessagingApi.getHistory error: ${e.message}")
+            emptyList()
+        }
+    }
 }

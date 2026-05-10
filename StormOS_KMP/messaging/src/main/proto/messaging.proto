@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package com.messaging.proto;
+
+option java_package = "com.messaging.service.proto";
+option java_outer_classname = "MessagingProto";
+option java_multiple_files = true;
+// lite runtime is mandatory on Android to keep binary size small
+option optimize_for = LITE_RUNTIME;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BLE_BROADCAST /p2p/presence
+// Emitted in a loop; tells nearby devices user's position
+// ─────────────────────────────────────────────────────────────────────────────
+message BlePresence {
+  string user_id   = 1;
+  double lat       = 2;
+  double lng       = 3;
+  int64  timestamp = 4;   // Unix epoch millis
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BLE_REQ /p2p/marketplace/sync
+// Central requests the cached marketplace ads from a peripheral
+// ─────────────────────────────────────────────────────────────────────────────
+message BleMarketplaceSyncRequest {
+  string requester_id  = 1;
+  int64  last_sync_ts  = 2;   // Only send items newer than this
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BLE_RES /p2p/marketplace/data
+// Peripheral responds with its cached items
+// Chunked if total payload > 512 bytes (ATT MTU limit)
+// ─────────────────────────────────────────────────────────────────────────────
+message BleMarketplaceSyncResponse {
+  repeated MarketplaceItemProto items    = 1;
+  int32                         chunk    = 2;   // 0-based chunk index
+  int32                         total_chunks = 3;
+}
+
+message MarketplaceItemProto {
+  string id          = 1;
+  string title       = 2;
+  string description = 3;
+  double lat         = 4;
+  double lng         = 5;
+  int64  created_at  = 6;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BLE_SEND /p2p/mesh/message
+// Mesh packet – destination may not be direct neighbour (Ad-Hoc routing)
+// ─────────────────────────────────────────────────────────────────────────────
+message BleMeshMessage {
+  string message_id      = 1;
+  string sender_id       = 2;
+  string destination_id  = 3;   // Final recipient (may require hops)
+  bytes  payload         = 4;   // AES-256-GCM encrypted content
+  int32  ttl             = 5;   // Decremented at each hop; drop if 0
+  int64  timestamp       = 6;
+  MessageType type       = 7;
+}
+
+enum MessageType {
+  CHAT      = 0;
+  ACK       = 1;
+  ROUTE_REQ = 2;   // Discover route to destination
+  ROUTE_RES = 3;   // Route reply
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Wrapper envelope – every BLE GATT write uses this so the receiver
+// can dispatch without parsing the inner bytes first.
+// ─────────────────────────────────────────────────────────────────────────────
+message BleEnvelope {
+  OperationType operation = 1;
+  bytes         data      = 2;   // serialised inner proto
+
+  enum OperationType {
+    PRESENCE          = 0;
+    MARKETPLACE_REQ   = 1;
+    MARKETPLACE_RES   = 2;
+    MESH_MESSAGE      = 3;
+  }
+}
