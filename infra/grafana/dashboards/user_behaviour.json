@@ -1,55 +1,131 @@
 {
-  "title": "StormOS — User Behaviour",
+  "title": "StormOS \u2014 User Behaviour",
   "uid": "stormos-user-behaviour",
   "timezone": "browser",
   "refresh": "1m",
-  "time": { "from": "now-7d", "to": "now" },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
   "panels": [
     {
       "id": 1,
       "title": "Messages Sent (Online vs BLE)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
       "targets": [
         {
           "datasource": "InfluxDB",
-          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"messages\" and r.direction == \"sent\")\n  |> aggregateWindow(every: v.windowPeriod, fn: count)\n  |> group(columns: [\"transport\"])"
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"messages\" and r.direction == \"sent\")\n  |> group(columns: [\"transport\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: count, createEmpty: false)\n  |> map(fn: (r) => ({ r with _field: if r.transport == \"online\" then \"Online\" else \"Offline\" }))\n  |> group(columns: [\"_field\"])"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "_value (.*)",
+            "renamePattern": "$1"
+          }
         }
       ]
     },
     {
       "id": 2,
-      "title": "Messages Per Day",
+      "title": "Messages by Day of Week",
       "type": "barchart",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
       "targets": [
         {
           "datasource": "InfluxDB",
-          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"messages\")\n  |> aggregateWindow(every: 1d, fn: count)\n  |> group(columns: [\"transport\"])"
+          "query": "import \"date\"\nimport \"array\"\n\nbase = array.from(rows: [\n    {day_of_week: \"Monday\",    _field: \"Online\",  _value: 0},\n    {day_of_week: \"Tuesday\",   _field: \"Online\",  _value: 0},\n    {day_of_week: \"Wednesday\", _field: \"Online\",  _value: 0},\n    {day_of_week: \"Thursday\",  _field: \"Online\",  _value: 0},\n    {day_of_week: \"Friday\",    _field: \"Online\",  _value: 0},\n    {day_of_week: \"Saturday\",  _field: \"Online\",  _value: 0},\n    {day_of_week: \"Sunday\",    _field: \"Online\",  _value: 0},\n    {day_of_week: \"Monday\",    _field: \"Offline\", _value: 0},\n    {day_of_week: \"Tuesday\",   _field: \"Offline\", _value: 0},\n    {day_of_week: \"Wednesday\", _field: \"Offline\", _value: 0},\n    {day_of_week: \"Thursday\",  _field: \"Offline\", _value: 0},\n    {day_of_week: \"Friday\",    _field: \"Offline\", _value: 0},\n    {day_of_week: \"Saturday\",  _field: \"Offline\", _value: 0},\n    {day_of_week: \"Sunday\",    _field: \"Offline\", _value: 0},\n])\n\nactual = from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"messages\")\n  |> map(fn: (r) => ({\n      _value: 1,\n      _field: if r.transport == \"online\" then \"Online\" else \"Offline\",\n      day_of_week:\n        if date.weekDay(t: r._time) == 0 then \"Sunday\"\n        else if date.weekDay(t: r._time) == 1 then \"Monday\"\n        else if date.weekDay(t: r._time) == 2 then \"Tuesday\"\n        else if date.weekDay(t: r._time) == 3 then \"Wednesday\"\n        else if date.weekDay(t: r._time) == 4 then \"Thursday\"\n        else if date.weekDay(t: r._time) == 5 then \"Friday\"\n        else \"Saturday\"\n  }))\n  |> keep(columns: [\"_value\", \"_field\", \"day_of_week\"])\n\nunion(tables: [base, actual])\n  |> group(columns: [\"day_of_week\", \"_field\"])\n  |> sum()\n  |> group()\n  |> pivot(rowKey: [\"day_of_week\"], columnKey: [\"_field\"], valueColumn: \"_value\")"
         }
-      ]
+      ],
+      "options": {
+        "xField": "day_of_week",
+        "groupWidth": 0.7,
+        "fillOpacity": 80,
+        "barAlignment": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 80
+          }
+        },
+        "overrides": []
+      },
+      "transformations": []
     },
     {
       "id": 3,
       "title": "Online vs BLE Usage (sent messages)",
       "type": "piechart",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 8
+      },
       "targets": [
         {
           "datasource": "InfluxDB",
-          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"messages\" and r.direction == \"sent\")\n  |> group(columns: [\"transport\"])\n  |> count()\n  |> group()"
+          "refId": "A",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"messages\"\n      and r.direction == \"sent\"\n      and r.transport == \"online\")\n  |> count()\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Online\"})"
+        },
+        {
+          "datasource": "InfluxDB",
+          "refId": "B",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"messages\"\n      and r.direction == \"sent\"\n      and r.transport == \"ble\")\n  |> count()\n  |> keep(columns: [\"_value\"])\n  |> rename(columns: {_value: \"Offline\"})"
         }
-      ]
+      ],
+      "transformations": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
     },
     {
       "id": 4,
       "title": "Messages Received",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 8 },
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 8,
+        "y": 8
+      },
       "targets": [
         {
           "datasource": "InfluxDB",
-          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"messages\" and r.direction == \"received\")\n  |> aggregateWindow(every: v.windowPeriod, fn: count)\n  |> group(columns: [\"transport\"])"
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"messages\" and r.direction == \"received\")\n  |> group(columns: [\"transport\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: count, createEmpty: false)\n  |> map(fn: (r) => ({ r with _field: if r.transport == \"online\" then \"Online\" else \"Offline\" }))\n  |> group(columns: [\"_field\"])"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "_value (.*)",
+            "renamePattern": "$1"
+          }
         }
       ]
     },
@@ -57,7 +133,12 @@
       "id": 5,
       "title": "Messages by City",
       "type": "barchart",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -69,7 +150,12 @@
       "id": 6,
       "title": "Messages by Country",
       "type": "barchart",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
       "targets": [
         {
           "datasource": "InfluxDB",
@@ -81,11 +167,25 @@
       "id": 7,
       "title": "Weekly Message Trend",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
       "targets": [
         {
           "datasource": "InfluxDB",
-          "query": "from(bucket: \"stormos\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"messages\")\n  |> aggregateWindow(every: 1w, fn: count)\n  |> group(columns: [\"transport\"])"
+          "query": "from(bucket: \"stormos\")\n  |> range(start: -30d)\n  |> filter(fn: (r) => r._measurement == \"messages\")\n  |> group(columns: [\"transport\"])\n  |> aggregateWindow(every: 1w, fn: count, createEmpty: false)\n  |> map(fn: (r) => ({ r with _field: if r.transport == \"online\" then \"Online\" else \"Offline\" }))\n  |> group(columns: [\"_field\"])"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "_value (.*)",
+            "renamePattern": "$1"
+          }
         }
       ]
     }
