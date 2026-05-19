@@ -21,31 +21,32 @@ data class AdItem(
 )
 
 object StormApi {
+
+    private const val BASE_URL = "http://stormos-103075.deti.ua.pt"
+
     private val client = HttpClient {
         install(ContentNegotiation) { json() }
     }
 
     suspend fun createItem(item: MarketplaceItem) {
-        // 10.0.2.2 é o IP para o emulador Android ver o teu PC (onde está o main.py)
-        client.post("http://10.0.2.2:8000/api/v1/sync/items") {
+        client.post("$BASE_URL/api/v1/items") {
             contentType(ContentType.Application.Json)
-            setBody(listOf(item)) // O teu backend espera uma lista
+            setBody(item) // objeto simples, não lista
         }
     }
 
     suspend fun getAllAds(): List<AdItem> {
         return try {
-            client.get("http://10.0.2.2:8000/api/v1/items").body()
+            client.get("$BASE_URL/api/v1/items").body()
         } catch (e: Exception) {
-            emptyList() // Retorna lista vazia se o servidor estiver desligado
+            emptyList()
         }
     }
 
     suspend fun fetchAds(radius: Float): List<AdItem> {
         return try {
-            // Relembra: 10.0.2.2 para emulador Android
-            client.get("http://10.0.2.2:8000/api/v1/items") {
-                parameter("radius", radius) // Passa o raio como query param
+            client.get("$BASE_URL/api/v1/items") {
+                parameter("radius", radius)
             }.body()
         } catch (e: Exception) {
             println("Erro na API: ${e.message}")
@@ -53,10 +54,9 @@ object StormApi {
         }
     }
 
-    // No StormApi.kt
     suspend fun getSyncData(lastSync: String): List<AdItem> {
         return try {
-            client.get("http://10.0.2.2:8000/api/v1/sync") {
+            client.get("$BASE_URL/api/v1/sync") {
                 parameter("last_sync", lastSync)
             }.body()
         } catch (e: Exception) {
@@ -64,10 +64,9 @@ object StormApi {
         }
     }
 
-    // No StormApi.kt
     suspend fun getMapData(minLat: Double, maxLat: Double, minLon: Double, maxLon: Double): List<AdItem> {
         return try {
-            client.get("http://10.0.2.2:8000/api/v1/map/data") {
+            client.get("$BASE_URL/api/v1/map/data") {
                 parameter("min_lat", minLat)
                 parameter("max_lat", maxLat)
                 parameter("min_lon", minLon)
@@ -77,14 +76,6 @@ object StormApi {
             emptyList()
         }
     }
-
-    // No StormApi.kt
-    /*suspend fun syncLocations(locations: List<LocationUpdate>) {
-        client.post("http://10.0.2.2:8000/api/v1/sync/locations") {
-            contentType(ContentType.Application.Json)
-            setBody(locations)
-        }
-    }*/
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -104,11 +95,6 @@ object MessagingApi {
         }
     }
 
-    /**
-     * Sends a message to the Messaging Service.
-     * Stored locally as PENDING — works offline.
-     * Returns true on success, false if the service is unreachable.
-     */
     suspend fun sendMessage(
         userId: String,
         chatId: String,
@@ -132,11 +118,6 @@ object MessagingApi {
         }
     }
 
-    /**
-     * Returns the list of conversations the user has participated in,
-     * each with the last message and the other participant's ID.
-     * Used to build the dynamic conversation list screen.
-     */
     suspend fun getChats(userId: String): List<ChatSummary> {
         return try {
             client.get("$BASE_URL/api/v1/chats") {
@@ -148,16 +129,12 @@ object MessagingApi {
         }
     }
 
-    /**
-     * Returns the message history for a chat from the local DB.
-     * Works fully offline — the Messaging Service serves from Room.
-     */
     suspend fun getHistory(chatId: String): List<ChatMessage> {
         return try {
             client.get("$BASE_URL/api/v1/messages/$chatId")
                 .body<ChatHistoryResponse>()
                 .messages
-                .sortedBy { it.timestamp }  // oldest first for chat display
+                .sortedBy { it.timestamp }
         } catch (e: Exception) {
             println("MessagingApi.getHistory error: ${e.message}")
             emptyList()

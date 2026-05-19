@@ -25,24 +25,33 @@ private const val NOTIFICATION_ID = 1001
 
 class MessagingForegroundService : LifecycleService() {
 
-    @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_ADVERTISE, Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT])
-    override fun onCreate() {
-        super.onCreate()
+   @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_ADVERTISE, Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT])
+override fun onCreate() {
+    super.onCreate()
+    MessagingServiceLocator.init(this)
+    createNotificationChannel()
 
-        // Initialise the entire dependency graph
-        MessagingServiceLocator.init(this)
-
-        createNotificationChannel()
+    if (hasBlePermissions()) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID,
+                buildNotification(),
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, buildNotification())
+        }
+    } else {
         startForeground(NOTIFICATION_ID, buildNotification())
-
-        MessagingServiceLocator.embeddedServer.start(lifecycleScope)
-        startBle()
-        observeIncomingMessages()
-        startHealthReporting()
-
-        Log.i(TAG, "Started — HTTP on :${EmbeddedHttpServer.DEFAULT_PORT}")
     }
 
+    MessagingServiceLocator.embeddedServer.start(lifecycleScope)
+    startBle()
+    observeIncomingMessages()
+    startHealthReporting()
+
+    Log.i(TAG, "Started — HTTP on :${EmbeddedHttpServer.DEFAULT_PORT}")
+}
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         return START_STICKY

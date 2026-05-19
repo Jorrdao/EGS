@@ -8,12 +8,14 @@ from psycopg2.extras import execute_values
 app = FastAPI()
 
 # Conector à Base de Dados (Docker)
+import os
+
 def get_db_connection():
     return psycopg2.connect(
-        host="localhost", 
-        database="geodb", 
-        user="user_geo", 
-        password="password_geo"
+        host=os.getenv("POSTGRES_HOST", "localhost"),
+        database=os.getenv("POSTGRES_DB", "geodb"),
+        user=os.getenv("POSTGRES_USER", "user_geo"),
+        password=os.getenv("POSTGRES_PASSWORD", "password_geo")
     )
 
 # Modelo de dados que a API espera receber (JSON)

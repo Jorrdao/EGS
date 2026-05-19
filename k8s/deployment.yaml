@@ -1,0 +1,292 @@
+# ── ConfigMap ──────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stormos-config
+  namespace: tenant-grupo7-egs-deti-ua-pt
+data:
+  POSTGRES_USER: "user_geo"
+  POSTGRES_DB: "geodb"
+  POSTGRES_HOST: "postgis-service"
+  POSTGRES_PORT: "5432"
+  INFLUX_URL: "http://influxdb-service:8086"
+  INFLUX_ORG: "stormos"
+  INFLUX_BUCKET: "stormos"
+---
+# ── Secret ─────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Secret
+metadata:
+  name: stormos-secret
+  namespace: tenant-grupo7-egs-deti-ua-pt
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: "password_geo"
+  INFLUX_TOKEN: "stormos-super-secret-token"
+  INFLUX_ADMIN_PASSWORD: "stormos_admin"
+---
+# ══════════════════════════════════════════════════════════════════════════════
+# POSTGIS
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgis
+  namespace: tenant-grupo7-egs-deti-ua-pt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgis
+  template:
+    metadata:
+      labels:
+        app: postgis
+    spec:
+      containers:
+        - name: postgis
+          image: postgis/postgis:15-3.3
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: stormos-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: stormos-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stormos-secret
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: postgis-data
+              mountPath: /var/lib/postgresql/data
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: postgis-data
+          persistentVolumeClaim:
+            claimName: postgis-pvc
+        - name: init-sql
+          configMap:
+            name: stormos-init-sql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgis-service
+  namespace: tenant-grupo7-egs-deti-ua-pt
+spec:
+  selector:
+    app: postgis
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# ══════════════════════════════════════════════════════════════════════════════
+# FASTAPI (GeoLocation)
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: geolocation-api
+  namespace: tenant-grupo7-egs-deti-ua-pt
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: geolocation-api
+  template:
+    metadata:
+      labels:
+        app: geolocation-api
+    spec:
+      containers:
+        - name: geolocation-api
+          image: registry.deti/103075/geolocation:v1
+          ports:
+            - containerPort: 8000
+          env:
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: stormos-config
+                  key: POSTGRES_HOST
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: stormos-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: stormos-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stormos-secret
+                  key: POSTGRES_PASSWORD
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: geolocation-service
+  namespace: tenant-grupo7-egs-deti-ua-pt
+spec:
+  selector:
+    app: geolocation-api
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+# ══════════════════════════════════════════════════════════════════════════════
+# INFLUXDB
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: influxdb
+  namespace: tenant-grupo7-egs-deti-ua-pt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: influxdb
+  template:
+    metadata:
+      labels:
+        app: influxdb
+    spec:
+      containers:
+        - name: influxdb
+          image: influxdb:2.7
+          ports:
+            - containerPort: 8086
+          env:
+            - name: DOCKER_INFLUXDB_INIT_MODE
+              value: "setup"
+            - name: DOCKER_INFLUXDB_INIT_USERNAME
+              value: "admin"
+            - name: DOCKER_INFLUXDB_INIT_ORG
+              value: "stormos"
+            - name: DOCKER_INFLUXDB_INIT_BUCKET
+              value: "stormos"
+            - name: DOCKER_INFLUXDB_INIT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stormos-secret
+                  key: INFLUX_ADMIN_PASSWORD
+            - name: DOCKER_INFLUXDB_INIT_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: stormos-secret
+                  key: INFLUX_TOKEN
+          volumeMounts:
+            - name: influxdb-data
+              mountPath: /var/lib/influxdb2
+      volumes:
+        - name: influxdb-data
+          persistentVolumeClaim:
+            claimName: influxdb-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: influxdb-service
+  namespace: tenant-grupo7-egs-deti-ua-pt
+spec:
+  selector:
+    app: influxdb
+  ports:
+    - port: 8086
+      targetPort: 8086
+---
+# ══════════════════════════════════════════════════════════════════════════════
+# GRAFANA
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: tenant-grupo7-egs-deti-ua-pt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.4.0
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: "admin"
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: "stormos_admin"
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+          volumeMounts:
+            - name: grafana-data
+              mountPath: /var/lib/grafana
+      volumes:
+        - name: grafana-data
+          persistentVolumeClaim:
+            claimName: grafana-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-service
+  namespace: tenant-grupo7-egs-deti-ua-pt
+spec:
+  selector:
+    app: grafana
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+# ══════════════════════════════════════════════════════════════════════════════
+# INGRESS — URLs públicos
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stormos-ingress
+  namespace: tenant-grupo7-egs-deti-ua-pt
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: "web"
+spec:
+  rules:
+    - host: "stormos-103075.deti.ua.pt"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: geolocation-service
+                port:
+                  number: 8000
+    - host: "stormos-grafana-103075.deti.ua.pt"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana-service
+                port:
+                  number: 3000
