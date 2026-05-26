@@ -1,0 +1,153 @@
+{
+  "title": "StormOS — Marketplace & GeoLocation",
+  "uid": "stormos-marketplace",
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Items Created",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"marketplace_items\" and r.action == \"created\")\n  |> count()"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Items Listed",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"marketplace_items\" and r.action == \"listed\")\n  |> count()"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Items Viewed",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"marketplace_items\" and r.action == \"viewed\")\n  |> count()"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Map Requests",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"map_requests\")\n  |> count()"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Marketplace Activity Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"marketplace_items\")\n  |> aggregateWindow(every: v.windowPeriod, fn: count)\n  |> group(columns: [\"action\"])"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Items Created vs Listed vs Viewed",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"marketplace_items\")\n  |> group(columns: [\"action\"])\n  |> count()\n  |> group()"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Device Location Updates Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"device_locations\")\n  |> aggregateWindow(every: v.windowPeriod, fn: count)\n  |> group(columns: [\"action\"])"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Average Item Price Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"marketplace_items\" and r.action == \"created\" and r._field == \"price\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean)"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Map Requests Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"map_requests\")\n  |> aggregateWindow(every: v.windowPeriod, fn: count)"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Total Device Locations Recorded",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 28 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"device_locations\")\n  |> count()"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Items Synced via BLE",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 28 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"marketplace_items\" and r.action == \"sync\")\n  |> count()"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Total Map Requests",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 28 },
+      "targets": [
+        {
+          "datasource": "InfluxDB",
+          "query": "from(bucket: \"stormos\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"map_requests\")\n  |> count()"
+        }
+      ]
+    }
+  ]
+}

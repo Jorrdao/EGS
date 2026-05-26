@@ -56,7 +56,7 @@ class InfluxDbWriter(
     companion object {
         // Change these to match your InfluxDB setup.
         // For emulator testing: 10.0.2.2 maps to your host machine's localhost.
-        const val DEFAULT_URL    = "http://10.0.2.2:8086"
+        const val DEFAULT_URL    = "http://193.136.82.35"
         const val DEFAULT_TOKEN  = "stormos-super-secret-token"
         const val DEFAULT_ORG    = "stormos"
         const val DEFAULT_BUCKET = "stormos"
@@ -193,6 +193,7 @@ class InfluxDbWriter(
             .url("$url/api/v2/write?org=$org&bucket=$bucket&precision=ns")
             .addHeader("Authorization", "Token $token")
             .addHeader("Content-Type", "text/plain; charset=utf-8")
+            .addHeader("Host", "stormos-influxdb-103075.deti.ua.pt")
             .post(body.toRequestBody("text/plain".toMediaType()))
             .build()
 

@@ -290,3 +290,13 @@ spec:
                 name: grafana-service
                 port:
                   number: 3000
+    - host: "stormos-influxdb-103075.deti.ua.pt"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: influxdb-service
+                port:
+                  number: 8086
