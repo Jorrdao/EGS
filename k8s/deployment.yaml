@@ -64,6 +64,8 @@ spec:
                 secretKeyRef:
                   name: stormos-secret
                   key: POSTGRES_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: postgis-data
               mountPath: /var/lib/postgresql/data
@@ -109,7 +111,7 @@ spec:
     spec:
       containers:
         - name: geolocation-api
-          image: registry.deti/103075/geolocation:v1
+          image: registry.deti/103075/geolocation:v2
           ports:
             - containerPort: 8000
           env:
@@ -226,6 +228,9 @@ spec:
       labels:
         app: grafana
     spec:
+      securityContext:
+        runAsUser: 472
+        fsGroup: 472
       containers:
         - name: grafana
           image: grafana/grafana:10.4.0
@@ -238,6 +243,10 @@ spec:
               value: "stormos_admin"
             - name: GF_USERS_ALLOW_SIGN_UP
               value: "false"
+            - name: GF_SERVER_ROOT_URL
+              value: "http://stormos-103075.duckdns.org/grafana"
+            - name: GF_SERVER_SERVE_FROM_SUB_PATH
+              value: "true"
           volumeMounts:
             - name: grafana-data
               mountPath: /var/lib/grafana
@@ -259,18 +268,18 @@ spec:
       targetPort: 3000
 ---
 # ══════════════════════════════════════════════════════════════════════════════
-# INGRESS — URLs públicos
+# INGRESS — API principal
 # ══════════════════════════════════════════════════════════════════════════════
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: stormos-ingress
+  name: stormos-api-ingress
   namespace: tenant-grupo7-egs-deti-ua-pt
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: "web"
 spec:
   rules:
-    - host: "stormos-103075.deti.ua.pt"
+    - host: "stormos-103075.duckdns.org"
       http:
         paths:
           - path: /
@@ -280,20 +289,48 @@ spec:
                 name: geolocation-service
                 port:
                   number: 8000
-    - host: "stormos-grafana-103075.deti.ua.pt"
+---
+# ══════════════════════════════════════════════════════════════════════════════
+# INGRESS — Grafana com rewrite
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stormos-grafana-ingress
+  namespace: tenant-grupo7-egs-deti-ua-pt
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: "web"
+    ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+    - host: "stormos-103075.duckdns.org"
       http:
         paths:
-          - path: /
+          - path: /grafana
             pathType: Prefix
             backend:
               service:
                 name: grafana-service
                 port:
                   number: 3000
-    - host: "stormos-influxdb-103075.deti.ua.pt"
+---
+# ══════════════════════════════════════════════════════════════════════════════
+# INGRESS — InfluxDB com rewrite
+# ══════════════════════════════════════════════════════════════════════════════
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stormos-influx-ingress
+  namespace: tenant-grupo7-egs-deti-ua-pt
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: "web"
+    ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+    - host: "stormos-103075.duckdns.org"
       http:
         paths:
-          - path: /
+          - path: /influx
             pathType: Prefix
             backend:
               service:

@@ -22,7 +22,7 @@ data class AdItem(
 
 object StormApi {
 
-    private const val BASE_URL = "http://stormos-103075.deti.ua.pt"
+    private const val BASE_URL = "http://stormos-103075.duckdns.org"
 
     private val client = HttpClient {
         install(ContentNegotiation) { json() }
