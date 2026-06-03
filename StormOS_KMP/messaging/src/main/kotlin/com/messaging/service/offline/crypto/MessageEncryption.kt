@@ -1,46 +1,38 @@
 package com.messaging.service.offline.crypto
 
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
 import android.util.Base64
-import java.security.KeyStore
+import java.security.MessageDigest
 import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
-import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
 
-/**
- * AES-256-GCM encryption/decryption for BLE mesh message payloads.
- *
- * Uses the Android Keystore system so the key material never leaves
- * secure hardware (on supported devices).
- *
- * Each encrypt() call generates a fresh 12-byte IV; the IV is prepended
- * to the ciphertext so decrypt() can extract it.
- *
- * Output format: Base64( IV[12] || TAG[16] || CIPHERTEXT )
- */
-class MessageEncryption constructor() {
+class MessageEncryption {
+    // A shared secret across all instances of your app
+    private val sharedSecret = "storm_os_mesh_shared_secret_2024"
+    private val secretKey: SecretKeySpec
 
-    private val keyAlias = "messaging_ble_key"
-    private val keyStore = KeyStore.getInstance("AndroidKeyStore").also { it.load(null) }
-
-    init { ensureKeyExists() }
+    init {
+        // Derive a deterministic 256-bit (32-byte) key
+        val digest = MessageDigest.getInstance("SHA-256")
+        val keyBytes = digest.digest(sharedSecret.toByteArray(Charsets.UTF_8))
+        secretKey = SecretKeySpec(keyBytes, "AES")
+    }
 
     fun encrypt(plaintext: ByteArray): ByteArray {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, getKey())
-        val iv         = cipher.iv          // 12 bytes
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+        val iv = cipher.iv
         val ciphertext = cipher.doFinal(plaintext)
-        return iv + ciphertext              // IV || TAG || CIPHERTEXT
+        return iv + ciphertext
     }
 
     fun decrypt(data: ByteArray): ByteArray {
-        val iv         = data.copyOfRange(0, 12)
+        val iv = data.copyOfRange(0, 12)
         val ciphertext = data.copyOfRange(12, data.size)
         val spec = GCMParameterSpec(128, iv)
+
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.DECRYPT_MODE, getKey(), spec)
+        cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)
         return cipher.doFinal(ciphertext)
     }
 
@@ -50,25 +42,5 @@ class MessageEncryption constructor() {
     fun decryptFromBase64(encoded: String): String {
         val bytes = Base64.decode(encoded, Base64.NO_WRAP)
         return String(decrypt(bytes), Charsets.UTF_8)
-    }
-
-    private fun getKey(): SecretKey =
-        (keyStore.getEntry(keyAlias, null) as KeyStore.SecretKeyEntry).secretKey
-
-    private fun ensureKeyExists() {
-        if (keyStore.containsAlias(keyAlias)) return
-        val keyGen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
-        keyGen.init(
-            KeyGenParameterSpec.Builder(
-                keyAlias,
-                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-            )
-                .setKeySize(256)
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .setRandomizedEncryptionRequired(true)
-                .build()
-        )
-        keyGen.generateKey()
     }
 }

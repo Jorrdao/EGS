@@ -15,17 +15,24 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import storm.os.ChatSummary
+import storm.os.IngestMessageRequest
 import storm.os.MessagingApi
+import storm.os.StormApi
 import storm.os.getUserId
 
 /**
  * Dynamic conversation list built from the user's real chat history.
  *
- * Calls GET /api/v1/chats?user_id=xxx on the Messaging Service, which
- * returns one entry per chat — sorted newest first — with the last
- * message preview and the other participant's ID.
+ * On load and on every manual refresh:
+ *   1. Calls GET /api/v1/sync?user_id=xxx on the GeoLocation service
+ *      to pull any messages stored in the cloud PostGIS DB.
+ *   2. Pushes the returned messages to the local Messaging Service via
+ *      POST /api/v1/messages/batch so they land in Room DB.
+ *   3. Calls GET /api/v1/chats from the local Messaging Service to
+ *      build the conversation list from the now up-to-date local DB.
  *
- * No static list anywhere. States: Loading → Empty → Error → Loaded.
+ * This means the chat list always reflects both locally sent messages
+ * AND messages received from other devices via the cloud.
  */
 @Composable
 fun MessageListScreen(onUserClick: (String) -> Unit) {
@@ -33,17 +40,42 @@ fun MessageListScreen(onUserClick: (String) -> Unit) {
     val myId  = remember { getUserId() }
     val scope = rememberCoroutineScope()
 
-    var chats     by remember { mutableStateOf<List<ChatSummary>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var hasError  by remember { mutableStateOf(false) }
+    var chats      by remember { mutableStateOf<List<ChatSummary>>(emptyList()) }
+    var isLoading  by remember { mutableStateOf(true) }
+    var syncStatus by remember { mutableStateOf("") }
 
     fun load() {
         scope.launch {
-            isLoading = true
-            hasError  = false
-            val result = MessagingApi.getChats(myId)
-            hasError  = result.isEmpty() && !isLoading  // will refine below
-            chats     = result
+            isLoading  = true
+            syncStatus = ""
+
+            // ── Step 1: pull from cloud ───────────────────────────────────────
+            // Fetch all messages for this user from PostGIS.
+            // lastSync defaults to epoch so we always get everything;
+            // insertOrIgnore on the server side handles duplicates safely.
+            val cloudMessages = StormApi.syncMessages(userId = myId)
+
+            if (cloudMessages.isNotEmpty()) {
+                // ── Step 2: ingest into local Room DB ─────────────────────────
+                val requests = cloudMessages.map { msg ->
+                    IngestMessageRequest(
+                        messageId   = msg.message_id,
+                        senderId    = msg.sender_id,
+                        recipientId = msg.recipient_id,
+                        chatId      = msg.chat_id,
+                        content     = msg.content,
+                        contentType = msg.content_type ?: "text",
+                        timestamp   = msg.timestamp,
+                        delivered   = msg.delivered ?: true,
+                        source      = "online"
+                    )
+                }
+                MessagingApi.ingestMessages(requests)
+                syncStatus = "${cloudMessages.size} mensagem(ns) sincronizada(s)"
+            }
+
+            // ── Step 3: load chats from local DB ──────────────────────────────
+            chats     = MessagingApi.getChats(myId)
             isLoading = false
         }
     }
@@ -71,20 +103,37 @@ fun MessageListScreen(onUserClick: (String) -> Unit) {
             }
         }
 
+        // ── Sync status banner ────────────────────────────────────────────────
+        if (syncStatus.isNotEmpty()) {
+            Text(
+                text     = syncStatus,
+                style    = MaterialTheme.typography.labelSmall,
+                color    = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+            )
+        }
+
         HorizontalDivider()
 
         // ── Body ──────────────────────────────────────────────────────────────
         Box(modifier = Modifier.fillMaxSize()) {
 
             when {
-                // Loading spinner
                 isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                    Column(
+                        modifier            = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "A sincronizar mensagens...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
-                // Empty state — no conversations yet
                 chats.isEmpty() -> {
                     Column(
                         modifier            = Modifier
@@ -116,7 +165,6 @@ fun MessageListScreen(onUserClick: (String) -> Unit) {
                     }
                 }
 
-                // Conversation list — sorted newest first by the server
                 else -> {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(
@@ -137,8 +185,6 @@ fun MessageListScreen(onUserClick: (String) -> Unit) {
         }
     }
 }
-
-// ── Private composable ────────────────────────────────────────────────────────
 
 @Composable
 private fun ChatListItem(

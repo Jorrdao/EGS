@@ -16,7 +16,7 @@ android {
 
     defaultConfig {
         minSdk = 24
-        buildConfigField("String", "ONLINE_BASE_URL", "\"http://10.0.2.2:8080/\"")
+        buildConfigField("String", "ONLINE_BASE_URL", "\"http://stormos-103075.duckdns.org\"")
     }
 
     buildTypes {

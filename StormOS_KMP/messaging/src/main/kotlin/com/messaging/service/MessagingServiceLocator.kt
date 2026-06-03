@@ -21,12 +21,9 @@ object MessagingServiceLocator {
     lateinit var bleScanner:     BleScanner                   private set
     lateinit var gattServer:     BleGattServer                private set
     lateinit var offlineRepo:    OfflineMessagingRepository   private set
+    lateinit var myUserId:       String                       private set
 
-    // The persistent user ID shared with the UI via SharedPreferences.
-    // Same key as UserSession.android.kt so both sides always agree.
-    lateinit var myUserId: String private set
-
-    private const val PREFS_NAME = "storm_os_prefs"
+    private const val PREFS_NAME  = "storm_os_prefs"
     private const val USER_ID_KEY = "user_id"
 
     private var initialised = false
@@ -37,23 +34,23 @@ object MessagingServiceLocator {
 
         val appContext = context.applicationContext
 
-        // Read the same userId the UI uses (written by UserSession.android.kt)
         myUserId = appContext
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getString(USER_ID_KEY, null)
-            ?: "unknown"   // fallback until the UI has opened at least once
+            ?: "unknown"
 
         val db  = MessageDatabase.getInstance(appContext)
         val dao = db.messageDao()
 
-        val influxWriter = com.messaging.service.kpi.InfluxDbWriter()
+        val influxWriter = InfluxDbWriter()
         influxWriter.start()
-        kpiTracker     = KpiTracker(influxWriter)
+        kpiTracker    = KpiTracker(influxWriter)
+
         val encryption = MessageEncryption()
         val btManager  = appContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         val btAdapter  = btManager.adapter
 
-        bleScanner   = BleScanner(btAdapter, kpiTracker)
+        bleScanner    = BleScanner(btAdapter, kpiTracker)
         bleAdvertiser = BleAdvertiser(btAdapter, kpiTracker)
         val gattClient = BleGattCentralClient(appContext, kpiTracker)
 
@@ -62,15 +59,15 @@ object MessagingServiceLocator {
             myUserId = myUserId
         )
 
-        gattServer     = BleGattServer(appContext, btManager, offlineRepo, kpiTracker)
+        gattServer = BleGattServer(appContext, btManager, offlineRepo, kpiTracker)
 
-        // EmbeddedHttpServer now gets offlineRepo and context so it can
-        // check connectivity and decide online vs BLE routing
+        // Pass myUserId so the batch endpoint knows whose cache this is
         embeddedServer = EmbeddedHttpServer(
             context     = appContext,
             messageDao  = dao,
             offlineRepo = offlineRepo,
-            kpiTracker  = kpiTracker
+            kpiTracker  = kpiTracker,
+            myUserId    = myUserId
         )
     }
 }

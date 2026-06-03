@@ -22,3 +22,19 @@ CREATE TABLE marketplace_items (
 -- 3. Índice Espacial (Fundamental para performance)
 CREATE INDEX idx_devices_location ON devices USING GIST (location);
 CREATE INDEX idx_marketplace_items_location ON marketplace_items USING GIST (location);
+
+CREATE TABLE messages (
+    message_id VARCHAR(255) PRIMARY KEY,
+    sender_id VARCHAR(255) NOT NULL,
+    recipient_id VARCHAR(255) NOT NULL,
+    chat_id VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    content_type VARCHAR(50) DEFAULT 'text',
+    location GEOMETRY(Point, 4326) NOT NULL,   -- Kept the spatial requirement
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_messages_sender ON messages (sender_id);
+CREATE INDEX idx_messages_recipient ON messages (recipient_id);
+CREATE INDEX idx_messages_chat ON messages (chat_id);
+CREATE INDEX idx_messages_location ON messages USING GIST (location);

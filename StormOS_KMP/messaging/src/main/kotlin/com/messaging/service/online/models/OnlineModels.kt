@@ -53,3 +53,34 @@ data class ErrorResponse(
     @SerializedName("message")   val message: String,
     @SerializedName("timestamp") val timestamp: Long
 )
+
+/**
+ * Used by POST /api/v1/messages/batch — receives messages from the UI
+ * that were pulled from the cloud sync and stores them in Room DB.
+ */
+data class IngestMessageRequest(
+    @SerializedName("message_id")   val messageId:   String,
+    @SerializedName("sender_id")    val senderId:    String,
+    @SerializedName("recipient_id") val recipientId: String,
+    @SerializedName("chat_id")      val chatId:      String,
+    @SerializedName("content")      val content:     String,
+    @SerializedName("content_type") val contentType: String?  = "text",
+    @SerializedName("timestamp")    val timestamp:   Long,
+    @SerializedName("delivered")    val delivered:   Boolean? = true,
+    @SerializedName("source")       val source:      String?  = "online"
+)
+
+/**
+ * Used to push a sent message to the cloud PostGIS via
+ * POST /api/v1/sync/messages on the GeoLocation service.
+ */
+data class CloudSyncPayload(
+    @SerializedName("message_id")   val messageId:   String,
+    @SerializedName("user_id")      val userId:      String,   // sender
+    @SerializedName("chat_id")      val chatId:      String,
+    @SerializedName("recipient_id") val recipientId: String,
+    @SerializedName("content")      val content:     String,
+    @SerializedName("content_type") val contentType: String = "text",
+    @SerializedName("latitude")     val latitude:    Double = 0.0,
+    @SerializedName("longitude")    val longitude:   Double = 0.0
+)

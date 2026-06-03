@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import storm.os.MarketplaceItem
 import storm.os.StormApi
 import storm.os.getCurrentLocation
+import storm.os.getUserId
 
 @Composable
 fun CreateItemScreen() {
@@ -26,7 +27,8 @@ fun CreateItemScreen() {
     var description by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var statusText by remember { mutableStateOf("Preencha os campos") }
-    var contact by remember { mutableStateOf("") }
+    val myId = remember { getUserId() }
+    var contact by remember { mutableStateOf(myId) }
     var latitude by remember { mutableStateOf(0.0) }
     var longitude by remember { mutableStateOf(0.0) }
 
@@ -72,10 +74,10 @@ fun CreateItemScreen() {
 
             OutlinedTextField(
                 value = contact,
-                onValueChange = { contact = it },
-                label = { Text("Contacto") },
+                onValueChange = { },
+                label = { Text("ID de Contacto") },
                 modifier = Modifier.fillMaxWidth(),
-                isError = contact.isBlank()
+                enabled = false
             )
 
             Spacer(modifier = Modifier.height(10.dp))

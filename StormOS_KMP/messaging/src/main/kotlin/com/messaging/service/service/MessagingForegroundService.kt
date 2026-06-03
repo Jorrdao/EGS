@@ -7,6 +7,10 @@ import android.app.NotificationManager
 import android.bluetooth.BluetoothManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.Geocoder
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -18,40 +22,48 @@ import androidx.lifecycle.lifecycleScope
 import com.messaging.service.MessagingServiceLocator
 import com.messaging.service.R
 import com.messaging.service.online.api.EmbeddedHttpServer
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 private const val TAG             = "MessagingService"
 private const val NOTIFICATION_ID = 1001
 
 class MessagingForegroundService : LifecycleService() {
 
-   @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_ADVERTISE, Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT])
-override fun onCreate() {
-    super.onCreate()
-    MessagingServiceLocator.init(this)
-    createNotificationChannel()
+    private lateinit var locationManager: LocationManager
 
-    if (hasBlePermissions()) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIFICATION_ID,
-                buildNotification(),
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
-            )
+    @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_ADVERTISE, Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT])
+    override fun onCreate() {
+        super.onCreate()
+        MessagingServiceLocator.init(this)
+        createNotificationChannel()
+
+        if (hasBlePermissions()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    buildNotification(),
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, buildNotification())
+            }
         } else {
             startForeground(NOTIFICATION_ID, buildNotification())
         }
-    } else {
-        startForeground(NOTIFICATION_ID, buildNotification())
+
+        MessagingServiceLocator.embeddedServer.start(lifecycleScope)
+        startBle()
+        observeIncomingMessages()
+        startHealthReporting()
+
+        // ── NEW: Hook into the device GPS to feed Grafana ──
+        startLocationTracking()
+
+        Log.i(TAG, "Started — HTTP on :${EmbeddedHttpServer.DEFAULT_PORT}")
     }
 
-    MessagingServiceLocator.embeddedServer.start(lifecycleScope)
-    startBle()
-    observeIncomingMessages()
-    startHealthReporting()
-
-    Log.i(TAG, "Started — HTTP on :${EmbeddedHttpServer.DEFAULT_PORT}")
-}
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         return START_STICKY
@@ -68,6 +80,16 @@ override fun onCreate() {
         MessagingServiceLocator.bleAdvertiser.stop()
         MessagingServiceLocator.bleScanner.stop()
         MessagingServiceLocator.gattServer.stop()
+
+        // Stop requesting location updates when service dies
+        if (::locationManager.isInitialized) {
+            try {
+                locationManager.removeUpdates(locationListener)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to remove location listener: ${e.message}")
+            }
+        }
+
         super.onDestroy()
         Log.i(TAG, "Destroyed")
     }
@@ -119,10 +141,6 @@ override fun onCreate() {
             .setSilent(true)
             .build()
 
-    /**
-     * Pushes a health snapshot to InfluxDB every 60 seconds.
-     * Also updates location context when available.
-     */
     private fun startHealthReporting() {
         lifecycleScope.launch {
             while (true) {
@@ -132,13 +150,63 @@ override fun onCreate() {
         }
     }
 
-    /**
-     * Call this from the UI or a LocationProvider when the device location changes.
-     * Attaches city/country to all subsequent InfluxDB metric points.
-     */
-    fun updateLocation(city: String, country: String) {
-        MessagingServiceLocator.kpiTracker.updateLocation(city, country)
-        MessagingServiceLocator.bleAdvertiser.updatePosition(0.0, 0.0) // lat/lng set separately
+    // ── NEW: Location Fetching & Reverse Geocoding ─────────────────────────────
+
+    private val locationListener = object : LocationListener {
+        override fun onLocationChanged(location: Location) {
+            // Geocoding requires network I/O, so we run it on the IO Dispatcher
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val geocoder = Geocoder(this@MessagingForegroundService, Locale.getDefault())
+                    val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+
+                    val city = addresses?.firstOrNull()?.locality ?: "unknown"
+                    val country = addresses?.firstOrNull()?.countryCode ?: "unknown"
+
+                    Log.d(TAG, "Location updated: $city, $country (${location.latitude}, ${location.longitude})")
+
+                    // 1. Send City and Country to InfluxDB for Grafana Heatmaps
+                    MessagingServiceLocator.kpiTracker.updateLocation(city, country)
+
+                    // 2. Send Latitude/Longitude to BLE Mesh Advertiser
+                    MessagingServiceLocator.bleAdvertiser.updatePosition(location.latitude, location.longitude)
+
+                } catch (e: Exception) {
+                    Log.w(TAG, "Geocoder failed: ${e.message}. Feeding raw coords only.")
+                    // Fallback if Geocoder fails (e.g., phone is offline)
+                    MessagingServiceLocator.kpiTracker.updateLocation("unknown", "unknown")
+                    MessagingServiceLocator.bleAdvertiser.updatePosition(location.latitude, location.longitude)
+                }
+            }
+        }
+    }
+
+    private fun startLocationTracking() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "Location permission missing — Grafana geo-tagging disabled")
+            return
+        }
+
+        locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+
+        try {
+            // Request updates every 2 minutes (120,000 ms) or if the user moves 50 meters
+            locationManager.requestLocationUpdates(
+                LocationManager.GPS_PROVIDER,
+                120_000L,
+                50f,
+                locationListener
+            )
+            locationManager.requestLocationUpdates(
+                LocationManager.NETWORK_PROVIDER,
+                120_000L,
+                50f,
+                locationListener
+            )
+            Log.i(TAG, "Location tracking started")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start location tracking: ${e.message}")
+        }
     }
 
     private fun hasBlePermissions(): Boolean =
@@ -146,7 +214,8 @@ override fun onCreate() {
             listOf(
                 android.Manifest.permission.BLUETOOTH_SCAN,
                 android.Manifest.permission.BLUETOOTH_ADVERTISE,
-                android.Manifest.permission.BLUETOOTH_CONNECT
+                android.Manifest.permission.BLUETOOTH_CONNECT,
+                android.Manifest.permission.ACCESS_FINE_LOCATION // Added Location permission check
             ).all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
         } else {
             ContextCompat.checkSelfPermission(

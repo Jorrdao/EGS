@@ -99,6 +99,9 @@ interface MessageDao {
     @Query("SELECT COUNT(*) FROM messages")
     suspend fun count(): Int
 
+    @Query("SELECT COUNT(*) FROM messages WHERE chat_id = :chatId")
+    suspend fun countByChatId(chatId: String): Int
+
     /**
      * Returns the most recent message for each distinct chat the user
      * has participated in — either as sender (user_id) or recipient.

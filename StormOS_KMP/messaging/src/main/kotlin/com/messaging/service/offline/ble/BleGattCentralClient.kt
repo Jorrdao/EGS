@@ -6,6 +6,8 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.util.Log
 import androidx.annotation.RequiresPermission
@@ -13,11 +15,16 @@ import com.messaging.service.kpi.KpiTracker
 import com.messaging.service.proto.BleEnvelope
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
+import android.os.Handler
+import android.os.Looper
+import android.os.Build
 
 data class SendResult(val success: Boolean, val error: String? = null)
 
@@ -41,15 +48,9 @@ class BleGattCentralClient constructor(
     private val pool = ConcurrentHashMap<String, BluetoothGatt>()
 
     // Continuations waiting for a specific operation to complete
-    private val connectContinuations  = ConcurrentHashMap<String, kotlin.coroutines.Continuation<Boolean>>()
-    private val writeContinuations    = ConcurrentHashMap<String, kotlin.coroutines.Continuation<Boolean>>()
-    private val mtuContinuations      = ConcurrentHashMap<String, kotlin.coroutines.Continuation<Int>>()
-
-    /**
-     * Send an envelope to a specific peer by BLE MAC address.
-     * Connects (or reuses) a GATT connection, then writes the serialised bytes.
-     * Large payloads are automatically chunked as WRITE_NO_RESPONSE.
-     */
+    private val connectContinuations = ConcurrentHashMap<String, CancellableContinuation<Boolean>>()
+    private val writeContinuations    = ConcurrentHashMap<String, Continuation<Boolean>>()
+    private val mtuContinuations      = ConcurrentHashMap<String, Continuation<Int>>()
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     suspend fun sendEnvelope(
@@ -74,7 +75,7 @@ class BleGattCentralClient constructor(
                     writeContinuations[address] = cont
                     writeChar.value = chunk
                     writeChar.writeType = if (isLast)
-                        BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT          // with response on last chunk
+                        BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                     else
                         BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
                     gatt.writeCharacteristic(writeChar)
@@ -93,21 +94,69 @@ class BleGattCentralClient constructor(
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun disconnectAll() {
-        pool.values.forEach { it.disconnect(); it.close() }
+        pool.values.forEach {
+            it.disconnect()
+            it.close()
+        }
         pool.clear()
     }
 
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+    private fun isDeviceConnected(device: BluetoothDevice): Boolean {
+        val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        return bluetoothManager.getConnectionState(device, BluetoothProfile.GATT) ==
+                BluetoothProfile.STATE_CONNECTED
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
+
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private suspend fun getOrConnect(device: BluetoothDevice): BluetoothGatt? {
-        pool[device.address]?.let { return it }
-
-        return withTimeoutOrNull(10_000L) {
-            suspendCancellableCoroutine { cont ->
-                connectContinuations[device.address] = cont as Continuation<Boolean>
-                device.connectGatt(context, false, buildCallback(), BluetoothDevice.TRANSPORT_LE)
+        pool[device.address]?.let { existing ->
+            if (isDeviceConnected(device)) {
+                return existing
             }
+            // Stale entry — aggressively close it to prevent leaks
+            existing.close()
+            pool.remove(device.address)
         }
+
+        // Reduced to 5 seconds. If the radios miss their sync window,
+        // failing fast allows the mesh queue to retry on the next scanner tick.
+        val connected = withTimeoutOrNull(5_000L) {
+            suspendCancellableCoroutine<Boolean> { cont ->
+                connectContinuations[device.address] = cont
+
+                // Use a Handler to post to the Main thread instantly.
+                // This bypasses Huawei's ZeroHung watchdog because it doesn't suspend the dispatcher.
+                Handler(Looper.getMainLooper()).post {
+                    val gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        // Force the 1M Physical Layer for maximum Huawei <-> Samsung compatibility
+                        device.connectGatt(
+                            context,
+                            false,
+                            buildCallback(),
+                            BluetoothDevice.TRANSPORT_LE,
+                            BluetoothDevice.PHY_LE_1M_MASK
+                        )
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        device.connectGatt(context, false, buildCallback(), BluetoothDevice.TRANSPORT_LE)
+                    } else {
+                        device.connectGatt(context, false, buildCallback())
+                    }
+
+                    // Clean up if the 5s timeout triggers
+                    cont.invokeOnCancellation {
+                        Log.w(tag, "Connection to ${device.address} timed out, cleaning up GATT.")
+                        gatt?.disconnect()
+                        gatt?.close()
+                        connectContinuations.remove(device.address)
+                    }
+                }
+            }
+        } ?: false
+
+        return if (connected) pool[device.address] else null
     }
 
     private fun buildCallback() = object : BluetoothGattCallback() {
@@ -115,12 +164,14 @@ class BleGattCentralClient constructor(
         @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             val address = gatt.device.address
-            if (newState == BluetoothGatt.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
+            if (newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
                 Log.d(tag, "Connected to $address, requesting MTU")
                 gatt.requestMtu(BleConstants.REQUESTED_MTU)
-            } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
-                Log.d(tag, "Disconnected from $address")
-                pool.remove(address)
+            } else {
+                Log.w(tag, "Disconnected from $address status=$status newState=$newState")
+                // FIX 3: Always close the raw gatt instance passed to the callback on failure!
+                gatt.close()
+                pool.remove(address)?.close()
                 connectContinuations.remove(address)?.resume(false)
             }
         }
@@ -130,7 +181,6 @@ class BleGattCentralClient constructor(
             val address = gatt.device.address
             Log.d(tag, "MTU changed to $mtu for $address")
             mtuContinuations.remove(address)?.resume(mtu)
-            // Discover services after MTU negotiation
             gatt.discoverServices()
         }
 
@@ -142,7 +192,6 @@ class BleGattCentralClient constructor(
                 return
             }
 
-            // Enable notifications on CHAR_NOTIFY
             val notifyChar = gatt.getService(BleConstants.SERVICE_UUID)
                 ?.getCharacteristic(BleConstants.CHAR_NOTIFY_UUID)
 
@@ -173,7 +222,6 @@ class BleGattCentralClient constructor(
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic
         ) {
-            // Incoming notification from peripheral (inbound mesh message)
             Log.d(tag, "Notification received from ${gatt.device.address}: ${characteristic.value?.size} bytes")
             kpiTracker.increment(KpiTracker.Key.BLE_MESSAGES_RECEIVED)
         }

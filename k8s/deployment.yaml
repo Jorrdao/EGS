@@ -111,7 +111,7 @@ spec:
     spec:
       containers:
         - name: geolocation-api
-          image: registry.deti/103075/geolocation:v2
+          image: registry.deti/103075/geolocation:v3
           ports:
             - containerPort: 8000
           env:
@@ -210,6 +210,49 @@ spec:
     - port: 8086
       targetPort: 8086
 ---
+---
+# ── Grafana datasource provisioning ───────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: tenant-grupo7-egs-deti-ua-pt
+data:
+  influxdb.yml: |
+    apiVersion: 1
+    datasources:
+      - name: InfluxDB
+        type: influxdb
+        access: proxy
+        url: http://influxdb-service:8086
+        jsonData:
+          version: Flux
+          organization: stormos
+          defaultBucket: stormos
+          tlsSkipVerify: true
+        secureJsonData:
+          token: stormos-super-secret-token
+        isDefault: true
+        editable: true
+---
+# ── Grafana dashboard provider ─────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+  namespace: tenant-grupo7-egs-deti-ua-pt
+data:
+  provider.yml: |
+    apiVersion: 1
+    providers:
+      - name: StormOS
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards
+---
 # ══════════════════════════════════════════════════════════════════════════════
 # GRAFANA
 # ══════════════════════════════════════════════════════════════════════════════
@@ -250,10 +293,38 @@ spec:
           volumeMounts:
             - name: grafana-data
               mountPath: /var/lib/grafana
+            - name: grafana-datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: grafana-dashboard-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: grafana-dashboard-user-behaviour
+              mountPath: /var/lib/grafana/dashboards/user_behaviour.json
+              subPath: user_behaviour.json
+            - name: grafana-dashboard-technical-performance
+              mountPath: /var/lib/grafana/dashboards/technical_performance.json
+              subPath: technical_performance.json
+            - name: grafana-dashboard-marketplace-statistics
+              mountPath: /var/lib/grafana/dashboards/marketplace_statistics.json
+              subPath: marketplace_statistics.json
       volumes:
         - name: grafana-data
           persistentVolumeClaim:
             claimName: grafana-pvc
+        - name: grafana-datasources
+          configMap:
+            name: grafana-datasources
+        - name: grafana-dashboard-provider
+          configMap:
+            name: grafana-dashboard-provider
+        - name: grafana-dashboard-user-behaviour
+          configMap:
+            name: grafana-dashboard-user-behaviour
+        - name: grafana-dashboard-technical-performance
+          configMap:
+            name: grafana-dashboard-technical-performance
+        - name: grafana-dashboard-marketplace-statistics
+          configMap:
+            name: grafana-dashboard-marketplace-statistics
 ---
 apiVersion: v1
 kind: Service
@@ -315,7 +386,7 @@ spec:
                   number: 3000
 ---
 # ══════════════════════════════════════════════════════════════════════════════
-# INGRESS — InfluxDB com rewrite
+# INGRESS — InfluxDB (Direct API Route)
 # ══════════════════════════════════════════════════════════════════════════════
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -324,13 +395,13 @@ metadata:
   namespace: tenant-grupo7-egs-deti-ua-pt
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: "web"
-    ingress.kubernetes.io/rewrite-target: /
 spec:
   rules:
     - host: "stormos-103075.duckdns.org"
       http:
         paths:
-          - path: /influx
+          # Route the native InfluxDB API path directly! No rewrites needed.
+          - path: /api/v2
             pathType: Prefix
             backend:
               service:

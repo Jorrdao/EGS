@@ -88,8 +88,14 @@ class BleScanner constructor(
             return
         }
 
+        // Filter by manufacturer ID — present in the main advertising packet
+        // No service UUID filter since we moved it out to make room
         val filter = ScanFilter.Builder()
-            .setServiceUuid(ParcelUuid(BleConstants.SERVICE_UUID))
+            .setManufacturerData(
+                BleConstants.MANUFACTURER_ID,
+                ByteArray(1) { 0 },   // 1-byte pattern
+                ByteArray(1) { 0 }    // zero mask = match any data with our manufacturer ID
+            )
             .build()
 
         val settings = ScanSettings.Builder()
@@ -102,34 +108,42 @@ class BleScanner constructor(
         Log.d(tag, "BLE scan started")
     }
 
+    private fun processScanResult(result: ScanResult) {
+        val manufacturerData = result.scanRecord
+            ?.getManufacturerSpecificData(BleConstants.MANUFACTURER_ID)
+            ?: return
+
+        // Decode userId from raw 16-byte UUID
+        val userId = try {
+            if (manufacturerData.size >= 16) {
+                val bb = java.nio.ByteBuffer.wrap(manufacturerData)
+                java.util.UUID(bb.long, bb.long).toString()
+            } else {
+                String(manufacturerData, Charsets.UTF_8)
+            }
+        } catch (e: Exception) {
+            Log.w(tag, "Failed to decode userId from ${result.device.address}")
+            return
+        }
+
+        val peer = DiscoveredPeer(
+            address   = result.device.address,
+            userId    = userId,
+            lat       = 0.0,
+            lng       = 0.0,
+            rssi      = result.rssi,
+            timestamp = System.currentTimeMillis()
+        )
+        _peers.tryEmit(peer)
+        kpiTracker.increment(KpiTracker.Key.BLE_PEERS_DISCOVERED)
+        Log.d(tag, "Peer discovered: $userId @ ${result.device.address} rssi=${result.rssi}")
+    }
+
     @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
     private fun stopScan() {
         if (!isScanning) return
         bluetoothAdapter.bluetoothLeScanner?.stopScan(scanCallback)
         isScanning = false
         Log.d(tag, "BLE scan stopped")
-    }
-
-    private fun processScanResult(result: ScanResult) {
-        val manufacturerData = result.scanRecord
-            ?.getManufacturerSpecificData(BleConstants.MANUFACTURER_ID)
-            ?: return
-
-        try {
-            val presence = BlePresence.parseFrom(manufacturerData)
-            val peer = DiscoveredPeer(
-                address   = result.device.address,
-                userId    = presence.userId,
-                lat       = presence.lat,
-                lng       = presence.lng,
-                rssi      = result.rssi,
-                timestamp = presence.timestamp
-            )
-            _peers.tryEmit(peer)
-            kpiTracker.increment(KpiTracker.Key.BLE_PEERS_DISCOVERED)
-            Log.d(tag, "Peer discovered: ${peer.userId} rssi=${peer.rssi}")
-        } catch (e: Exception) {
-            Log.w(tag, "Failed to parse presence from ${result.device.address}: ${e.message}")
-        }
     }
 }

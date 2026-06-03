@@ -28,7 +28,7 @@ import storm.os.getUserId
  * after every send, so the list stays in sync across app restarts.
  */
 @Composable
-fun MessagingScreen(userName: String) {
+fun MessagingScreen(userName: String, displayName: String = userName) {
     val myId       = remember { getUserId() }
     // Sort IDs so the chat_id is the same regardless of who initiates
     val chatId     = remember(userName) {
@@ -66,7 +66,7 @@ fun MessagingScreen(userName: String) {
     // The interval is short enough to feel responsive but not hammering the DB.
     LaunchedEffect(chatId) {
         while (true) {
-            kotlinx.coroutines.delay(3_000L)
+            kotlinx.coroutines.delay(1_000L)
             val updated = MessagingApi.getHistory(chatId)
             // Only update state if something actually changed to avoid recomposition
             if (updated.size != messages.size ||
@@ -80,7 +80,7 @@ fun MessagingScreen(userName: String) {
 
         // ── Top bar ───────────────────────────────────────────────────────────
         Text(
-            text  = "Chat: $userName",
+            text  = "Chat: $displayName",
             modifier = Modifier.padding(16.dp),
             style = MaterialTheme.typography.titleLarge
         )

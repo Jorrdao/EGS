@@ -58,10 +58,8 @@ class BleAdvertiser constructor(
 
         advertiseJob?.cancel()
         advertiseJob = scope.launch {
-            while (isActive) {
-                broadcastPresence()
-                delay(BleConstants.PRESENCE_BROADCAST_INTERVAL_MS)
-            }
+            delay(1_000L)   // give BLE stack time to initialise
+            broadcastPresence() // Call this exactly ONCE. No while loop!
         }
     }
 
@@ -78,27 +76,28 @@ class BleAdvertiser constructor(
 
     @androidx.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_ADVERTISE)
     private fun broadcastPresence() {
-        val presence = BlePresence.newBuilder()
-            .setUserId(userId)
-            .setLat(lat)
-            .setLng(lng)
-            .setTimestamp(System.currentTimeMillis())
-            .build()
-
-        // Trim to MAX 26 bytes for legacy advertising manufacturer data
-        val raw = presence.toByteArray().take(26).toByteArray()
+        // Encode userId as raw 16-byte UUID — fits in advertising packet
+        val userIdBytes = try {
+            val uuid = java.util.UUID.fromString(userId)
+            val bb = java.nio.ByteBuffer.allocate(16)
+            bb.putLong(uuid.mostSignificantBits)
+            bb.putLong(uuid.leastSignificantBits)
+            bb.array()
+        } catch (e: Exception) {
+            userId.toByteArray(Charsets.UTF_8).take(16).toByteArray()
+        }
 
         val settings = AdvertiseSettings.Builder()
             .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_POWER)
             .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
-            .setConnectable(true)           // peripheral must be connectable for GATT
-            .setTimeout(0)                  // advertise indefinitely
+            .setConnectable(true)
+            .setTimeout(0)
             .build()
 
+        // Only manufacturer data — 3 + 20 = 23 bytes, well within 31
         val data = AdvertiseData.Builder()
-            .addServiceUuid(ParcelUuid(BleConstants.SERVICE_UUID))
-            .addManufacturerData(BleConstants.MANUFACTURER_ID, raw)
-            .setIncludeDeviceName(false)    // saves bytes
+            .addManufacturerData(BleConstants.MANUFACTURER_ID, userIdBytes)
+            .setIncludeDeviceName(false)
             .build()
 
         currentCallback?.let { advertiser?.stopAdvertising(it) }
@@ -106,7 +105,7 @@ class BleAdvertiser constructor(
         val cb = object : AdvertiseCallback() {
             override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {
                 kpiTracker.increment(KpiTracker.Key.BLE_PRESENCE_BROADCASTS)
-                Log.d(tag, "Presence advertised: lat=$lat lng=$lng")
+                Log.d(tag, "Presence advertised userId=$userId")
             }
             override fun onStartFailure(errorCode: Int) {
                 Log.e(tag, "Advertise failed: $errorCode")

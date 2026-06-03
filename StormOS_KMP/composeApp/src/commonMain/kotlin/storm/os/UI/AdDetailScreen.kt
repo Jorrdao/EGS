@@ -21,7 +21,7 @@ import storm.os.StormApi
 @Composable
 fun AdDetailScreen(
     adId: String, // Só precisas do ID que vem da rota
-    onContactClick: (String) -> Unit
+    onContactClick: (String, String) -> Unit
 ) {
     // 1. Criar o estado para o anúncio (começa vazio)
     var ad by remember { mutableStateOf<AdItem?>(null) }
@@ -107,7 +107,7 @@ fun AdDetailScreen(
                 Spacer(modifier = Modifier.weight(1f))
 
                 Button(
-                    onClick = { onContactClick(safeAd.name) },
+                    onClick = { onContactClick(safeAd.contact_info, safeAd.name) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Default.Chat, null)

@@ -60,10 +60,10 @@ class OfflineMessagingRepository constructor(
     val incomingMessages: SharedFlow<BleMeshMessage> = _incomingMessages
 
     // Peer address → presence snapshot (updated by scanner)
-    private val knownPeers = HashMap<String, DiscoveredPeer>()
+    private val knownPeers   = java.util.concurrent.ConcurrentHashMap<String, DiscoveredPeer>()
 
     // Pending store-and-forward queue (destinationId → list of envelopes)
-    private val pendingQueue = HashMap<String, MutableList<BleEnvelope>>()
+    private val pendingQueue = java.util.concurrent.ConcurrentHashMap<String, MutableList<BleEnvelope>>()
 
     @androidx.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
     fun startObservingPeers(scope: CoroutineScope) {
@@ -164,18 +164,25 @@ class OfflineMessagingRepository constructor(
 
     // ── Private routing ────────────────────────────────────────────────────────
 
-    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN])
     private suspend fun routeEnvelope(
         destinationId: String,
         envelope: BleEnvelope,
         scope: CoroutineScope
     ) {
-        // Find directly visible peer by userId
         val directPeer = knownPeers.values.firstOrNull { it.userId == destinationId }
 
         if (directPeer != null) {
             val device = bluetoothAdapter.getRemoteDevice(directPeer.address)
+
+            // ── FIX: Pause the scanner to free up the BLE radio! ──
+            bleScanner.stop()
+
             val result = gattClient.sendEnvelope(device, envelope, scope)
+
+            // ── Resume scanning after connection ends ──
+            bleScanner.start(scope)
+
             if (!result.success) {
                 Log.w(tag, "Direct send failed, queueing: ${result.error}")
                 queueForLater(destinationId, envelope)
@@ -188,21 +195,24 @@ class OfflineMessagingRepository constructor(
             } else {
                 val meshMsg = BleMeshMessage.parseFrom(envelope.data)
                 if (meshMsg.ttl <= 0) {
-                    Log.d(tag, "TTL exhausted, dropping message")
                     kpiTracker.increment(KpiTracker.Key.BLE_TTL_DROPS)
                     return
                 }
-                // Rebuild envelope with decremented TTL
-                val forwardMsg = meshMsg.toBuilder().setTtl(meshMsg.ttl - 1).build()
-                val forwardEnvelope = envelope.toBuilder()
-                    .setData(forwardMsg.toByteString()).build()
 
+                val forwardMsg = meshMsg.toBuilder().setTtl(meshMsg.ttl - 1).build()
+                val forwardEnvelope = envelope.toBuilder().setData(forwardMsg.toByteString()).build()
+
+                // Pause scanner for the mesh flood
+                bleScanner.stop()
+
+                // Route to all known peers sequentially to avoid antenna collision
                 knownPeers.values.forEach { peer ->
-                    scope.launch {
-                        val device = bluetoothAdapter.getRemoteDevice(peer.address)
-                        gattClient.sendEnvelope(device, forwardEnvelope, scope)
-                    }
+                    val device = bluetoothAdapter.getRemoteDevice(peer.address)
+                    gattClient.sendEnvelope(device, forwardEnvelope, scope)
                 }
+
+                // Resume scanning
+                bleScanner.start(scope)
                 kpiTracker.increment(KpiTracker.Key.BLE_MESSAGES_FORWARDED)
             }
         }
@@ -212,13 +222,22 @@ class OfflineMessagingRepository constructor(
         pendingQueue.getOrPut(destinationId) { mutableListOf() }.add(envelope)
     }
 
-    @androidx.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN])
     private fun flushPendingFor(peer: DiscoveredPeer, scope: CoroutineScope) {
         val pending = pendingQueue.remove(peer.userId) ?: return
         Log.d(tag, "Flushing ${pending.size} pending messages to ${peer.userId}")
         val device = bluetoothAdapter.getRemoteDevice(peer.address)
-        pending.forEach { envelope ->
-            scope.launch { gattClient.sendEnvelope(device, envelope, scope) }
+
+        scope.launch {
+            // ── FIX: Pause scanner while flushing queue ──
+            bleScanner.stop()
+
+            pending.forEach { envelope ->
+                gattClient.sendEnvelope(device, envelope, scope)
+            }
+
+            // Resume scanning
+            bleScanner.start(scope)
         }
     }
 
@@ -256,6 +275,7 @@ class OfflineMessagingRepository constructor(
         }
     }
 
+    @androidx.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
     private fun handleMeshMessage(fromAddress: String, envelope: BleEnvelope) {
         try {
             val msg = BleMeshMessage.parseFrom(envelope.data)
@@ -297,9 +317,14 @@ class OfflineMessagingRepository constructor(
                 Log.d(tag, "BLE message from ${msg.senderId} stored in DB: ${msg.messageId}")
 
             } else if (msg.ttl > 0) {
-                // Not for us — forward to next hop with TTL decremented
                 Log.d(tag, "Forwarding mesh message to ${msg.destinationId}, TTL=${msg.ttl}")
                 kpiTracker.increment(KpiTracker.Key.BLE_MESSAGES_FORWARDED)
+                val forwardMsg = msg.toBuilder().setTtl(msg.ttl - 1).build()
+                val forwardEnvelope = envelope.toBuilder()
+                    .setData(forwardMsg.toByteString()).build()
+                repoScope.launch {
+                    routeEnvelope(msg.destinationId, forwardEnvelope, repoScope)
+                }
             }
         } catch (e: Exception) {
             Log.e(tag, "Failed to handle mesh message: ${e.message}")

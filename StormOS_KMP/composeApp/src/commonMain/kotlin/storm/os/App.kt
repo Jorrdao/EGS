@@ -9,6 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import io.ktor.http.encodeURLParameter
 import storm.os.UI.* // Garante que a pasta 'ui' está em minúsculas conforme a convenção
 
 @Composable
@@ -62,10 +64,6 @@ fun App() {
                     navController.navigate("chat/$name")
                 })
             }
-            composable("chat/{userName}") { backStackEntry ->
-                val userName = backStackEntry.arguments?.getString("userName") ?: "Utilizador"
-                MessagingScreen(userName)
-            }
             composable("list") {
                 ListScreen(onAdClick = { id ->
                     navController.navigate("adDetail/$id")
@@ -73,9 +71,22 @@ fun App() {
             }
             composable("adDetail/{adId}") { backStackEntry ->
                 val adId = backStackEntry.arguments?.getString("adId") ?: ""
-                AdDetailScreen(adId = adId) { vendor ->
-                    navController.navigate("chat/$vendor")
+
+                AdDetailScreen(adId = adId) { recipientId, adName ->
+                    val encodedName = adName.encodeURLParameter()
+                    navController.navigate("chat/$recipientId?name=$encodedName")
                 }
+            }
+            composable(
+                route = "chat/{userName}?name={displayName}",
+                arguments = listOf(
+                    navArgument("userName")    { defaultValue = "" },
+                    navArgument("displayName") { defaultValue = "Conversa" }
+                )
+            ) { backStackEntry ->
+                val userName    = backStackEntry.arguments?.getString("userName") ?: ""
+                val displayName = backStackEntry.arguments?.getString("displayName") ?: "Conversa"
+                MessagingScreen(userName = userName, displayName = displayName)
             }
         }
     }

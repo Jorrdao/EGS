@@ -35,12 +35,10 @@ class MainActivity : ComponentActivity() {
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         AppConfig.context = applicationContext
-
-        requestRequiredPermissions()
-
+        getUserId()            // ← ensure UUID is written to SharedPrefs FIRST
+        requestRequiredPermissions()  // service starts after permissions granted
         setContent { App() }
     }
 

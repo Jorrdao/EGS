@@ -60,8 +60,52 @@ class MarketplaceItem(BaseModel):
     latitude: float
     longitude: float
 
+class MessagePayload(BaseModel):
+    message_id: str
+    user_id: str
+    chat_id: str
+    recipient_id: str
+    content: str
+    content_type: str = "text"
+    latitude: float
+    longitude: float
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
+
+@app.post("/api/v1/sync/messages")
+async def post_sync_messages(messages: list[MessagePayload]):
+    if not messages:
+        return {"status": "success", "uploaded": 0}
+        
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        query = """
+            INSERT INTO messages (message_id, sender_id, recipient_id, chat_id, content, content_type, location) 
+            VALUES %s 
+            ON CONFLICT (message_id) DO NOTHING
+        """
+        # Inject coordinates into PostGIS ST_MakePoint
+        template = "(%s, %s, %s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))"
+        values = [(m.message_id, m.user_id, m.recipient_id, m.chat_id, m.content, m.content_type, m.longitude, m.latitude) for m in messages]
+        
+        execute_values(cur, query, values, template=template)
+        conn.commit()
+
+        write_metric(
+            measurement="chat_messages",
+            tags={"action": "sync_up"},
+            fields={"count": f"{len(messages)}i"}
+        )
+
+        return {"status": "success", "uploaded": len(messages)}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
 
 @app.post("/api/v1/sync/locations")
 async def sync_locations(locations: list[LocationUpdate]):
@@ -115,7 +159,7 @@ async def post_sync_items(items: list[MarketplaceItem]):
 
 
 @app.get("/api/v1/sync")
-async def get_sync_data(last_sync: str = "1970-01-01T00:00:00"):
+async def get_sync_data(last_sync: str = "1970-01-01T00:00:00", user_id: Optional[str] = None):
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -123,8 +167,30 @@ async def get_sync_data(last_sync: str = "1970-01-01T00:00:00"):
             SELECT * FROM marketplace_items 
             WHERE created_at > %s
         """, (last_sync,))
-        changes = cur.fetchall()
-        return {"timestamp": "now()", "changes": changes}
+        item_changes = cur.fetchall()
+        
+        message_changes = []
+        if user_id:
+            # Added ST_Y and ST_X to pull coordinates back out, 
+            # and kept the EPOCH timestamp conversion to prevent Android crash.
+            cur.execute("""
+                SELECT message_id, sender_id, recipient_id, chat_id, content, content_type, 
+                       ST_Y(location::geometry) as latitude,
+                       ST_X(location::geometry) as longitude,
+                       CAST(EXTRACT(EPOCH FROM created_at) * 1000 AS BIGINT) AS timestamp,
+                       true AS delivered,
+                       false AS read
+                FROM messages 
+                WHERE created_at > %s 
+                AND (recipient_id = %s OR sender_id = %s)
+            """, (last_sync, user_id, user_id))
+            message_changes = cur.fetchall()
+
+        return {
+            "timestamp": "now()", # In a real app, calculate actual current time
+            "items": item_changes,
+            "messages": message_changes
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:

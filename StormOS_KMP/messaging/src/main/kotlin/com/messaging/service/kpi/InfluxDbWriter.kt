@@ -56,7 +56,7 @@ class InfluxDbWriter(
     companion object {
         // Change these to match your InfluxDB setup.
         // For emulator testing: 10.0.2.2 maps to your host machine's localhost.
-        const val DEFAULT_URL    = "http://193.136.82.35"
+        const val DEFAULT_URL    = "http://stormos-103075.duckdns.org"
         const val DEFAULT_TOKEN  = "stormos-super-secret-token"
         const val DEFAULT_ORG    = "stormos"
         const val DEFAULT_BUCKET = "stormos"
@@ -174,12 +174,13 @@ class InfluxDbWriter(
 
     private fun enqueue(line: String) {
         writerScope.launch {
-            mutex.withLock { buffer.add(line) }
-            // Flush immediately if buffer is large
-            if (buffer.size >= 100) flush()
+            val shouldFlush = mutex.withLock {
+                buffer.add(line)
+                buffer.size >= 100
+            }
+            if (shouldFlush) flush()
         }
     }
-
     private suspend fun flush() {
         val lines = mutex.withLock {
             if (buffer.isEmpty()) return
@@ -193,7 +194,7 @@ class InfluxDbWriter(
             .url("$url/api/v2/write?org=$org&bucket=$bucket&precision=ns")
             .addHeader("Authorization", "Token $token")
             .addHeader("Content-Type", "text/plain; charset=utf-8")
-            .addHeader("Host", "stormos-influxdb-103075.deti.ua.pt")
+            // 3. REMOVED the hardcoded .addHeader("Host", ...) line!
             .post(body.toRequestBody("text/plain".toMediaType()))
             .build()
 
@@ -203,18 +204,18 @@ class InfluxDbWriter(
                     Log.d(tag, "Flushed ${lines.size} points to InfluxDB")
                 } else {
                     Log.w(tag, "InfluxDB write failed: ${response.code} ${response.message}")
-                    // Re-queue on server errors (rate limit, etc.)
-                    if (response.code >= 500) {
+                    // 4. Save the data! Re-queue on everything except 400 (Bad Request) or 401 (Auth)
+                    if (response.code != 400 && response.code != 401) {
                         mutex.withLock { buffer.addAll(0, lines) }
                     }
                 }
             }
         } catch (e: Exception) {
             Log.w(tag, "InfluxDB unreachable — ${lines.size} points buffered: ${e.message}")
-            // Re-queue on network errors so no data is lost
             mutex.withLock { buffer.addAll(0, lines) }
         }
     }
+
 
     private fun buildPoint(
         measurement: String,
