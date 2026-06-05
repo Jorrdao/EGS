@@ -20,20 +20,6 @@ import storm.os.MessagingApi
 import storm.os.StormApi
 import storm.os.getUserId
 
-/**
- * Dynamic conversation list built from the user's real chat history.
- *
- * On load and on every manual refresh:
- *   1. Calls GET /api/v1/sync?user_id=xxx on the GeoLocation service
- *      to pull any messages stored in the cloud PostGIS DB.
- *   2. Pushes the returned messages to the local Messaging Service via
- *      POST /api/v1/messages/batch so they land in Room DB.
- *   3. Calls GET /api/v1/chats from the local Messaging Service to
- *      build the conversation list from the now up-to-date local DB.
- *
- * This means the chat list always reflects both locally sent messages
- * AND messages received from other devices via the cloud.
- */
 @Composable
 fun MessageListScreen(onUserClick: (String) -> Unit) {
 
@@ -44,19 +30,22 @@ fun MessageListScreen(onUserClick: (String) -> Unit) {
     var isLoading  by remember { mutableStateOf(true) }
     var syncStatus by remember { mutableStateOf("") }
 
-    fun load() {
+    /**
+     * Full sync + reload.
+     * [showLoading] = true for initial load and manual refresh (shows spinner).
+     * [showLoading] = false for background auto-refresh (silent, no spinner).
+     */
+    fun load(showLoading: Boolean = true) {
         scope.launch {
-            isLoading  = true
-            syncStatus = ""
+            if (showLoading) {
+                isLoading  = true
+                syncStatus = ""
+            }
 
-            // ── Step 1: pull from cloud ───────────────────────────────────────
-            // Fetch all messages for this user from PostGIS.
-            // lastSync defaults to epoch so we always get everything;
-            // insertOrIgnore on the server side handles duplicates safely.
+            // ── Pull from cloud ───────────────────────────────────────────────
             val cloudMessages = StormApi.syncMessages(userId = myId)
 
             if (cloudMessages.isNotEmpty()) {
-                // ── Step 2: ingest into local Room DB ─────────────────────────
                 val requests = cloudMessages.map { msg ->
                     IngestMessageRequest(
                         messageId   = msg.message_id,
@@ -71,16 +60,31 @@ fun MessageListScreen(onUserClick: (String) -> Unit) {
                     )
                 }
                 MessagingApi.ingestMessages(requests)
-                syncStatus = "${cloudMessages.size} mensagem(ns) sincronizada(s)"
+                if (showLoading) {
+                    syncStatus = "${cloudMessages.size} mensagem(ns) sincronizada(s)"
+                }
             }
 
-            // ── Step 3: load chats from local DB ──────────────────────────────
-            chats     = MessagingApi.getChats(myId)
-            isLoading = false
+            // ── Load from local DB ────────────────────────────────────────────
+            chats = MessagingApi.getChats(myId)
+
+            if (showLoading) isLoading = false
         }
     }
 
-    LaunchedEffect(Unit) { load() }
+    // ── Initial load (with spinner) ───────────────────────────────────────────
+    LaunchedEffect(Unit) { load(showLoading = true) }
+
+    // ── Background auto-refresh — 15 second interval ──────────────────────────
+    // Runs silently in the background so the user sees new conversations
+    // appear automatically without pressing the reload button.
+    // Does NOT show the loading spinner or sync status banner.
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(15_000L)
+            load(showLoading = false)
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
 
@@ -96,14 +100,20 @@ fun MessageListScreen(onUserClick: (String) -> Unit) {
                 style    = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.weight(1f)
             )
-            if (!isLoading) {
-                IconButton(onClick = { load() }) {
+            // Manual refresh button — always visible, shows spinner when tapped
+            IconButton(onClick = { load(showLoading = true) }) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier  = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
                     Icon(Icons.Default.Refresh, contentDescription = "Atualizar")
                 }
             }
         }
 
-        // ── Sync status banner ────────────────────────────────────────────────
+        // ── Sync status banner (only shown after manual refresh) ──────────────
         if (syncStatus.isNotEmpty()) {
             Text(
                 text     = syncStatus,
@@ -119,7 +129,8 @@ fun MessageListScreen(onUserClick: (String) -> Unit) {
         Box(modifier = Modifier.fillMaxSize()) {
 
             when {
-                isLoading -> {
+                // Initial loading spinner
+                isLoading && chats.isEmpty() -> {
                     Column(
                         modifier            = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -159,7 +170,7 @@ fun MessageListScreen(onUserClick: (String) -> Unit) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.height(16.dp))
-                        OutlinedButton(onClick = { load() }) {
+                        OutlinedButton(onClick = { load(showLoading = true) }) {
                             Text("Atualizar")
                         }
                     }
@@ -167,17 +178,12 @@ fun MessageListScreen(onUserClick: (String) -> Unit) {
 
                 else -> {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(
-                            items = chats,
-                            key   = { it.chatId }
-                        ) { chat ->
+                        items(items = chats, key = { it.chatId }) { chat ->
                             ChatListItem(
                                 chat    = chat,
                                 onClick = { onUserClick(chat.otherUserId) }
                             )
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         }
                     }
                 }
@@ -187,16 +193,10 @@ fun MessageListScreen(onUserClick: (String) -> Unit) {
 }
 
 @Composable
-private fun ChatListItem(
-    chat:    ChatSummary,
-    onClick: () -> Unit
-) {
+private fun ChatListItem(chat: ChatSummary, onClick: () -> Unit) {
     ListItem(
         headlineContent = {
-            Text(
-                text  = chat.otherUserId,
-                style = MaterialTheme.typography.titleMedium
-            )
+            Text(text = chat.otherUserId, style = MaterialTheme.typography.titleMedium)
         },
         supportingContent = {
             Text(

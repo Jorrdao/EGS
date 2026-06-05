@@ -43,7 +43,7 @@ class OfflineMessagingRepository constructor(
     private val messageDao:       MessageDao,
     private val kpiTracker:       KpiTracker,
     private val bluetoothAdapter: BluetoothAdapter,
-    private val myUserId:         String             // injected from ServiceLocator
+    val myUserId:                 String             // injected from ServiceLocator
 ) {
     private val tag = "OfflineRepo"
 
@@ -65,10 +65,14 @@ class OfflineMessagingRepository constructor(
     // Pending store-and-forward queue (destinationId → list of envelopes)
     private val pendingQueue = java.util.concurrent.ConcurrentHashMap<String, MutableList<BleEnvelope>>()
 
-    @androidx.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @androidx.annotation.RequiresPermission(allOf = [android.Manifest.permission.BLUETOOTH_SCAN, android.Manifest.permission.BLUETOOTH_CONNECT])
     fun startObservingPeers(scope: CoroutineScope) {
         scope.launch {
             bleScanner.peers.collect { peer ->
+                if (peer.userId == myUserId || peer.userId == "self") {
+                    return@collect
+                }
+
                 knownPeers[peer.address] = peer
                 Log.d(tag, "Peer updated: ${peer.userId} @ ${peer.address}")
                 // Flush any pending messages for this peer
@@ -85,7 +89,7 @@ class OfflineMessagingRepository constructor(
      * @param plaintext      Raw message text – will be AES-256-GCM encrypted
      * @param ttl            Max hops (default = BleConstants.DEFAULT_TTL)
      */
-    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT])
     suspend fun sendMeshMessage(
         destinationId: String,
         plaintext: String,
@@ -151,6 +155,7 @@ class OfflineMessagingRepository constructor(
 
     // ── Incoming envelope dispatcher (called by BleGattServer) ───────────────
 
+    @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT])
     fun handleIncomingEnvelope(fromAddress: String, envelope: BleEnvelope) {
         Log.d(tag, "Incoming envelope op=${envelope.operation} from=$fromAddress")
         when (envelope.operation) {
@@ -275,7 +280,7 @@ class OfflineMessagingRepository constructor(
         }
     }
 
-    @androidx.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @androidx.annotation.RequiresPermission(allOf = [android.Manifest.permission.BLUETOOTH_SCAN, android.Manifest.permission.BLUETOOTH_CONNECT])
     private fun handleMeshMessage(fromAddress: String, envelope: BleEnvelope) {
         try {
             val msg = BleMeshMessage.parseFrom(envelope.data)

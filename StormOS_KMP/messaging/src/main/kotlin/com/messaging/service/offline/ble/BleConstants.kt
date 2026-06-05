@@ -39,7 +39,7 @@ object BleConstants {
     const val REQUESTED_MTU = 512
 
     /** Max bytes that fit in a single BLE characteristic write without chunking */
-    const val MAX_CHUNK_BYTES = 500
+    const val MAX_CHUNK_BYTES = 240
 
     // ── Scan/Advertise intervals ──────────────────────────────────────────────
 

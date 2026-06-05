@@ -69,16 +69,17 @@ class BleGattCentralClient constructor(
         val chunks = bytes.toList().chunked(BleConstants.MAX_CHUNK_BYTES) { it.toByteArray() }
 
         for ((index, chunk) in chunks.withIndex()) {
-            val isLast = index == chunks.lastIndex
             val ok = withTimeoutOrNull(5_000L) {
                 suspendCancellableCoroutine { cont ->
                     writeContinuations[address] = cont
                     writeChar.value = chunk
-                    writeChar.writeType = if (isLast)
-                        BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                    else
-                        BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-                    gatt.writeCharacteristic(writeChar)
+                    // ALWAYS use WRITE_TYPE_DEFAULT for reliable delivery
+                    writeChar.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                    val initiated = gatt.writeCharacteristic(writeChar)
+                    if (!initiated) {
+                        writeContinuations.remove(address)
+                        cont.resume(false)
+                    }
                 }
             } ?: false
 
@@ -145,6 +146,12 @@ class BleGattCentralClient constructor(
                         device.connectGatt(context, false, buildCallback())
                     }
 
+                    if (gatt == null) {
+                        connectContinuations.remove(device.address)
+                        cont.resume(false)
+                        return@post
+                    }
+
                     // Clean up if the 5s timeout triggers
                     cont.invokeOnCancellation {
                         Log.w(tag, "Connection to ${device.address} timed out, cleaning up GATT.")
@@ -205,6 +212,11 @@ class BleGattCentralClient constructor(
             }
 
             pool[address] = gatt
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                connectContinuations.remove(address)?.resume(true)
+            }, 750)
+
             connectContinuations.remove(address)?.resume(true)
             Log.d(tag, "Services discovered for $address")
         }

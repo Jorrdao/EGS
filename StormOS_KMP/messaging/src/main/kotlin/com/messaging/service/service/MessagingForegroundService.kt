@@ -107,7 +107,10 @@ class MessagingForegroundService : LifecycleService() {
         }
         MessagingServiceLocator.gattServer.start()
         MessagingServiceLocator.bleScanner.start(lifecycleScope)
-        MessagingServiceLocator.bleAdvertiser.start("self", 0.0, 0.0, lifecycleScope)
+
+        val myId = MessagingServiceLocator.offlineRepo.myUserId
+        MessagingServiceLocator.bleAdvertiser.start(myId, 0.0, 0.0, lifecycleScope)
+
         MessagingServiceLocator.offlineRepo.startObservingPeers(lifecycleScope)
         Log.i(TAG, "BLE stack started")
     }

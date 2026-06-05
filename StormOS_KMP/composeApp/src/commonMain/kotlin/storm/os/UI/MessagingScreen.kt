@@ -14,24 +14,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import storm.os.ChatMessage
+import storm.os.IngestMessageRequest
 import storm.os.MessagingApi
+import storm.os.StormApi
 import storm.os.getUserId
 
-/**
- * Chat screen for a single conversation.
- *
- * [userName] is used both as the display name and the recipientId.
- * The chatId is derived deterministically from both user IDs so both
- * sides of the conversation always resolve to the same chat.
- *
- * Messages are loaded from the Messaging Service local DB on open and
- * after every send, so the list stays in sync across app restarts.
- */
 @Composable
 fun MessagingScreen(userName: String, displayName: String = userName) {
-    val myId       = remember { getUserId() }
-    // Sort IDs so the chat_id is the same regardless of who initiates
-    val chatId     = remember(userName) {
+    val myId    = remember { getUserId() }
+    val chatId  = remember(userName) {
         "chat_" + listOf(myId, userName).sorted().joinToString("_")
     }
 
@@ -40,38 +31,66 @@ fun MessagingScreen(userName: String, displayName: String = userName) {
     var isLoading   by remember { mutableStateOf(true) }
     var errorMsg    by remember { mutableStateOf<String?>(null) }
 
-    val scope       = rememberCoroutineScope()
-    val listState   = rememberLazyListState()
+    val scope     = rememberCoroutineScope()
+    val listState = rememberLazyListState()
 
-    // Load history when the screen opens or chatId changes
+    // ── Initial load ──────────────────────────────────────────────────────────
     LaunchedEffect(chatId) {
         isLoading = true
         errorMsg  = null
         messages  = MessagingApi.getHistory(chatId)
         isLoading = false
-        // Scroll to the most recent message
-        if (messages.isNotEmpty()) {
-            listState.scrollToItem(messages.lastIndex)
-        }
+        if (messages.isNotEmpty()) listState.scrollToItem(messages.lastIndex)
     }
 
-    // Auto-scroll to bottom whenever new messages arrive
+    // ── Auto-scroll when new messages arrive ──────────────────────────────────
     LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.lastIndex)
-        }
+        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
     }
 
-    // Poll for new incoming messages (BLE messages arrive in the background).
-    // The interval is short enough to feel responsive but not hammering the DB.
+    // ── Local DB poll — 1 second interval ─────────────────────────────────────
+    // Picks up BLE messages that arrive directly in Room DB.
+    // Lightweight: only a local SQL query, no network.
     LaunchedEffect(chatId) {
         while (true) {
             kotlinx.coroutines.delay(1_000L)
             val updated = MessagingApi.getHistory(chatId)
-            // Only update state if something actually changed to avoid recomposition
             if (updated.size != messages.size ||
                 updated.lastOrNull()?.messageId != messages.lastOrNull()?.messageId) {
                 messages = updated
+            }
+        }
+    }
+
+    // ── Cloud sync poll — 10 second interval ──────────────────────────────────
+    // Pulls online messages from PostGIS for this specific chat and ingests
+    // them into the local DB. The 1s local poll above picks them up immediately
+    // after ingest, so the user sees new messages within ~1 second of sync.
+    LaunchedEffect(chatId) {
+        while (true) {
+            kotlinx.coroutines.delay(5_000L)
+            try {
+                val cloudMessages = StormApi.syncMessages(userId = myId)
+                val forThisChat = cloudMessages.filter { it.chat_id == chatId }
+                if (forThisChat.isNotEmpty()) {
+                    MessagingApi.ingestMessages(forThisChat.map { msg ->
+                        IngestMessageRequest(
+                            messageId   = msg.message_id,
+                            senderId    = msg.sender_id,
+                            recipientId = msg.recipient_id,
+                            chatId      = msg.chat_id,
+                            content     = msg.content,
+                            contentType = msg.content_type ?: "text",
+                            timestamp   = msg.timestamp,
+                            delivered   = msg.delivered ?: true,
+                            source      = "online"
+                        )
+                    })
+                    // Local DB poll will pick up the new messages within 1s
+                }
+            } catch (e: Exception) {
+                // Non-fatal — local BLE messages still show via the 1s poll
+                println("MessagingScreen cloud sync error: ${e.message}")
             }
         }
     }
@@ -80,9 +99,9 @@ fun MessagingScreen(userName: String, displayName: String = userName) {
 
         // ── Top bar ───────────────────────────────────────────────────────────
         Text(
-            text  = "Chat: $displayName",
+            text     = "Chat: $displayName",
             modifier = Modifier.padding(16.dp),
-            style = MaterialTheme.typography.titleLarge
+            style    = MaterialTheme.typography.titleLarge
         )
         HorizontalDivider()
 
@@ -90,9 +109,7 @@ fun MessagingScreen(userName: String, displayName: String = userName) {
         Box(modifier = Modifier.weight(1f)) {
             when {
                 isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 messages.isEmpty() -> {
                     Text(
@@ -106,17 +123,14 @@ fun MessagingScreen(userName: String, displayName: String = userName) {
                 }
                 else -> {
                     LazyColumn(
-                        state            = listState,
-                        modifier         = Modifier
+                        state               = listState,
+                        modifier            = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 12.dp),
-                        verticalArrangement  = Arrangement.spacedBy(8.dp),
-                        contentPadding   = PaddingValues(vertical = 16.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding      = PaddingValues(vertical = 16.dp)
                     ) {
-                        items(
-                            items = messages,
-                            key   = { it.messageId }
-                        ) { msg ->
+                        items(items = messages, key = { it.messageId }) { msg ->
                             val isMe      = msg.senderId == myId
                             val alignment = if (isMe) Alignment.End else Alignment.Start
                             val color     = if (isMe)
@@ -125,7 +139,7 @@ fun MessagingScreen(userName: String, displayName: String = userName) {
                                 MaterialTheme.colorScheme.secondaryContainer
 
                             Column(
-                                modifier           = Modifier.fillMaxWidth(),
+                                modifier            = Modifier.fillMaxWidth(),
                                 horizontalAlignment = alignment
                             ) {
                                 Card(
@@ -147,7 +161,7 @@ fun MessagingScreen(userName: String, displayName: String = userName) {
             }
         }
 
-        // ── Error banner (shown if service unreachable) ───────────────────────
+        // ── Error banner ──────────────────────────────────────────────────────
         errorMsg?.let {
             Text(
                 text     = it,
@@ -175,10 +189,10 @@ fun MessagingScreen(userName: String, displayName: String = userName) {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
-                    onClick  = {
+                    onClick = {
                         val text = messageText.trim()
                         if (text.isBlank()) return@IconButton
-                        messageText = ""    // clear immediately for snappy UX
+                        messageText = ""
                         scope.launch {
                             val ok = MessagingApi.sendMessage(
                                 userId      = myId,
@@ -187,9 +201,8 @@ fun MessagingScreen(userName: String, displayName: String = userName) {
                                 content     = text
                             )
                             if (ok) {
-                                // Reload history so Room DB is the single source of truth
-                                messages  = MessagingApi.getHistory(chatId)
-                                errorMsg  = null
+                                messages = MessagingApi.getHistory(chatId)
+                                errorMsg = null
                             } else {
                                 errorMsg = "Serviço de mensagens indisponível. Tenta novamente."
                             }
